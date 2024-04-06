@@ -103,10 +103,17 @@ impl<'a, 't> Visit<'a, 't> for TransformTypeof {
                 if matches!(
                     bin_expr.borrow(token).operator,
                     BinaryOperator::Equality | BinaryOperator::StrictEquality
-                ) && matches!(bin_expr.borrow(token).right, Expression::StringLiteral(_))
-                {
-                    let parent = bin_expr.borrow_mut(token);
-                    std::mem::swap(&mut parent.left, &mut parent.right);
+                ) {
+                    if let Expression::StringLiteral(str_lit) = bin_expr.borrow(token).right {
+                        // Swap left and right of binary expression
+                        let bin_expr_mut = bin_expr.borrow_mut(token);
+                        std::mem::swap(&mut bin_expr_mut.left, &mut bin_expr_mut.right);
+
+                        // Update parent links of left and right
+                        let temp = str_lit.borrow(token).parent;
+                        str_lit.borrow_mut(token).parent = unary_expr.borrow(token).parent;
+                        unary_expr.borrow_mut(token).parent = temp;
+                    }
                 }
             }
         }

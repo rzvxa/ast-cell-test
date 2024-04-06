@@ -20,7 +20,7 @@ pub enum Expression<'a, 't> {
     UnaryExpression(node_ref!(UnaryExpression<'a, 't>)),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum ExpressionParent<'a, 't> {
     None,
     ExpressionStatement(node_ref!(ExpressionStatement<'a, 't>)),
