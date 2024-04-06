@@ -3,7 +3,7 @@ use crate::{
         BinaryExpression, BinaryOperator, IdentifierReference, Statement, StringLiteral,
         UnaryExpression, UnaryOperator,
     },
-    node_ref, Token, Visit,
+    Visit,
 };
 
 /// Codegen implemented as a visitor.
@@ -14,11 +14,11 @@ pub struct Printer {
 }
 
 impl Printer {
-    pub fn print<'t>(stmt: &Statement<'_, 't>, tk: &mut Token<'t>) -> String {
+    pub fn print(stmt: &Statement<'_>) -> String {
         let mut printer = Printer {
             output: String::new(),
         };
-        printer.visit_statement(stmt, tk);
+        printer.visit_statement(stmt);
         printer.output
     }
 
@@ -28,28 +28,16 @@ impl Printer {
 }
 
 impl<'a, 't> Visit<'a, 't> for Printer {
-    fn visit_identifier_reference(
-        &mut self,
-        id: node_ref!(IdentifierReference<'a, 't>),
-        tk: &mut Token<'t>,
-    ) {
-        self.output(id.borrow(tk).name);
+    fn visit_identifier_reference(&mut self, id: &IdentifierReference<'a>) {
+        self.output(id.name);
     }
 
-    fn visit_string_literal(
-        &mut self,
-        str_lit: node_ref!(StringLiteral<'a, 't>),
-        tk: &mut Token<'t>,
-    ) {
-        self.output(&format!("'{}'", str_lit.borrow(tk).value));
+    fn visit_string_literal(&mut self, str_lit: &StringLiteral<'a>) {
+        self.output(&format!("'{}'", str_lit.value));
     }
 
-    fn visit_unary_expression(
-        &mut self,
-        unary_expr: node_ref!(UnaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
-    ) {
-        match unary_expr.borrow(tk).operator {
+    fn visit_unary_expression(&mut self, unary_expr: &UnaryExpression<'a>) {
+        match unary_expr.operator {
             UnaryOperator::UnaryNegation => self.output("-"),
             UnaryOperator::UnaryPlus => self.output("+"),
             UnaryOperator::LogicalNot => self.output("!"),
@@ -58,22 +46,18 @@ impl<'a, 't> Visit<'a, 't> for Printer {
             UnaryOperator::Void => self.output("void "),
             UnaryOperator::Delete => self.output("delete "),
         }
-        self.visit_expression(&unary_expr.borrow(tk).argument.clone(), tk);
+        self.visit_expression(&unary_expr.argument);
     }
 
-    fn visit_binary_expression(
-        &mut self,
-        bin_expr: node_ref!(BinaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
-    ) {
-        self.visit_expression(&bin_expr.borrow(tk).left.clone(), tk);
+    fn visit_binary_expression(&mut self, bin_expr: &BinaryExpression<'a>) {
+        self.visit_expression(&bin_expr.left);
         self.output(&format!(
             " {} ",
-            match bin_expr.borrow(tk).operator {
+            match bin_expr.operator {
                 BinaryOperator::Equality => "==",
                 BinaryOperator::StrictEquality => "===",
             }
         ));
-        self.visit_expression(&bin_expr.borrow(tk).right.clone(), tk);
+        self.visit_expression(&bin_expr.right);
     }
 }

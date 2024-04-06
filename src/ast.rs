@@ -1,74 +1,205 @@
 #![allow(dead_code, clippy::enum_variant_names)]
 
+//! This file defines 2 different versions of the AST:
+//!
+//! 1. Standard version - using `Box<'a, T>` for references between types.
+//! 2. Traversable version - identical, except references between types are `&GhostCell<'a, 't, T>`.
+//!
+//! The difference between the two is that the traversable version's features interior mutability
+//! (via `GhostCell`). So the traversable AST can be mutated with just an immutable `&` reference.
+//! It can also be traversed in any direction (up or down).
+//!
+//! To avoid an expensive conversion process between the two AST versions, they are laid out in memory
+//! exactly the same, and one can be transmuted to the other at zero cost.
+//!
+//! # SAFETY
+//! The size, alignment, and layout of all AST node types and their "traversable" counterparts
+//! must be identical, so that transmuting `Statement` to `TraversableStatement` is sound.
+//! All types must be `#[repr(C)]` to ensure predictable type layouts.
+//! All enums must be `#[repr(C, u8)]` with explicit discriminants to ensure discriminants
+//! match between the "standard" and "traversable" types.
+
+// TODO: Create the "Traversable" types with a macro to ensure they cannot be out of sync,
+// and apply `#[repr(C)]` (for structs) / `#[repr(C, u8)]` (for enums) programatically,
+// so can't get forgotten.
+
+use oxc_allocator::Box;
+
 use crate::node_ref;
 
-#[derive(Clone)]
-pub enum Statement<'a, 't> {
-    ExpressionStatement(node_ref!(ExpressionStatement<'a, 't>)),
+const fn assert_eq_size_align<T1, T2>() {
+    use std::mem::{align_of, size_of};
+    assert!(size_of::<T1>() == size_of::<T2>());
+    assert!(align_of::<T1>() == align_of::<T2>());
+}
+
+const fn assert_box_and_cell_swappable<T>() {
+    assert_eq_size_align::<Box<T>, &crate::cell::GhostCell<T>>()
+}
+
+#[derive(Debug)]
+#[repr(C, u8)]
+pub enum Statement<'a> {
+    ExpressionStatement(Box<'a, ExpressionStatement<'a>>) = 0,
 }
 
 #[derive(Clone)]
-pub struct ExpressionStatement<'a, 't> {
-    pub expression: Expression<'a, 't>,
+#[repr(C, u8)]
+pub enum TraversableStatement<'a, 't> {
+    ExpressionStatement(node_ref!(TraversableExpressionStatement<'a, 't>)) = 0,
+}
+
+const _: () = assert_eq_size_align::<Statement, TraversableStatement>();
+const _: () = assert_box_and_cell_swappable::<Statement>();
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct ExpressionStatement<'a> {
+    pub expression: Expression<'a>,
 }
 
 #[derive(Clone)]
-pub enum Expression<'a, 't> {
-    StringLiteral(node_ref!(StringLiteral<'a, 't>)),
-    Identifier(node_ref!(IdentifierReference<'a, 't>)),
-    BinaryExpression(node_ref!(BinaryExpression<'a, 't>)),
-    UnaryExpression(node_ref!(UnaryExpression<'a, 't>)),
+#[repr(C)]
+pub struct TraversableExpressionStatement<'a, 't> {
+    pub expression: TraversableExpression<'a, 't>,
+}
+
+const _: () = assert_eq_size_align::<ExpressionStatement, TraversableExpressionStatement>();
+const _: () = assert_box_and_cell_swappable::<ExpressionStatement>();
+
+#[derive(Debug)]
+#[repr(C, u8)]
+pub enum Expression<'a> {
+    StringLiteral(Box<'a, StringLiteral<'a>>) = 0,
+    Identifier(Box<'a, IdentifierReference<'a>>) = 1,
+    BinaryExpression(Box<'a, BinaryExpression<'a>>) = 2,
+    UnaryExpression(Box<'a, UnaryExpression<'a>>) = 3,
+}
+
+#[derive(Clone)]
+#[repr(C, u8)]
+pub enum TraversableExpression<'a, 't> {
+    StringLiteral(node_ref!(TraversableStringLiteral<'a, 't>)) = 0,
+    Identifier(node_ref!(TraversableIdentifierReference<'a, 't>)) = 1,
+    BinaryExpression(node_ref!(TraversableBinaryExpression<'a, 't>)) = 2,
+    UnaryExpression(node_ref!(TraversableUnaryExpression<'a, 't>)) = 3,
+}
+
+const _: () = assert_eq_size_align::<Expression, TraversableExpression>();
+const _: () = assert_box_and_cell_swappable::<Expression>();
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C, u8)]
+pub enum ExpressionParent<'a> {
+    None = 0,
+    ExpressionStatement(*const ExpressionStatement<'a>) = 1,
+    BinaryExpressionLeft(*const BinaryExpression<'a>) = 2,
+    BinaryExpressionRight(*const BinaryExpression<'a>) = 3,
+    UnaryExpression(*const UnaryExpression<'a>) = 4,
 }
 
 #[derive(Clone, Copy)]
-pub enum ExpressionParent<'a, 't> {
-    None,
-    ExpressionStatement(node_ref!(ExpressionStatement<'a, 't>)),
-    BinaryExpressionLeft(node_ref!(BinaryExpression<'a, 't>)),
-    BinaryExpressionRight(node_ref!(BinaryExpression<'a, 't>)),
-    UnaryExpression(node_ref!(UnaryExpression<'a, 't>)),
+#[repr(C, u8)]
+pub enum TraversableExpressionParent<'a, 't> {
+    None = 0,
+    ExpressionStatement(node_ref!(TraversableExpressionStatement<'a, 't>)) = 1,
+    BinaryExpressionLeft(node_ref!(TraversableBinaryExpression<'a, 't>)) = 2,
+    BinaryExpressionRight(node_ref!(TraversableBinaryExpression<'a, 't>)) = 3,
+    UnaryExpression(node_ref!(TraversableUnaryExpression<'a, 't>)) = 4,
 }
 
-#[derive(Clone)]
-pub struct IdentifierReference<'a, 't> {
+const _: () = assert_eq_size_align::<ExpressionParent, TraversableExpressionParent>();
+const _: () = assert_box_and_cell_swappable::<ExpressionParent>();
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct IdentifierReference<'a> {
     pub name: &'a str,
-    pub parent: ExpressionParent<'a, 't>,
+    pub parent: ExpressionParent<'a>,
 }
 
 #[derive(Clone)]
-pub struct StringLiteral<'a, 't> {
+#[repr(C)]
+pub struct TraversableIdentifierReference<'a, 't> {
+    pub name: &'a str,
+    pub parent: TraversableExpressionParent<'a, 't>,
+}
+
+const _: () = assert_eq_size_align::<IdentifierReference, TraversableIdentifierReference>();
+const _: () = assert_box_and_cell_swappable::<IdentifierReference>();
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct StringLiteral<'a> {
     pub value: &'a str,
-    pub parent: ExpressionParent<'a, 't>,
+    pub parent: ExpressionParent<'a>,
 }
 
 #[derive(Clone)]
-pub struct BinaryExpression<'a, 't> {
-    pub left: Expression<'a, 't>,
+#[repr(C)]
+pub struct TraversableStringLiteral<'a, 't> {
+    pub value: &'a str,
+    pub parent: TraversableExpressionParent<'a, 't>,
+}
+
+const _: () = assert_eq_size_align::<StringLiteral, TraversableStringLiteral>();
+const _: () = assert_box_and_cell_swappable::<StringLiteral>();
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct BinaryExpression<'a> {
+    pub left: Expression<'a>,
     pub operator: BinaryOperator,
-    pub right: Expression<'a, 't>,
-    pub parent: ExpressionParent<'a, 't>,
-}
-
-#[derive(Clone, Copy)]
-pub enum BinaryOperator {
-    Equality,
-    StrictEquality,
+    pub right: Expression<'a>,
+    pub parent: ExpressionParent<'a>,
 }
 
 #[derive(Clone)]
-pub struct UnaryExpression<'a, 't> {
-    pub operator: UnaryOperator,
-    pub argument: Expression<'a, 't>,
-    pub parent: ExpressionParent<'a, 't>,
+#[repr(C)]
+pub struct TraversableBinaryExpression<'a, 't> {
+    pub left: TraversableExpression<'a, 't>,
+    pub operator: BinaryOperator,
+    pub right: TraversableExpression<'a, 't>,
+    pub parent: TraversableExpressionParent<'a, 't>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+const _: () = assert_eq_size_align::<BinaryExpression, TraversableBinaryExpression>();
+const _: () = assert_box_and_cell_swappable::<BinaryExpression>();
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[repr(u8)]
+pub enum BinaryOperator {
+    Equality = 0,
+    StrictEquality = 1,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct UnaryExpression<'a> {
+    pub operator: UnaryOperator,
+    pub argument: Expression<'a>,
+    pub parent: ExpressionParent<'a>,
+}
+
+#[derive(Clone)]
+#[repr(C)]
+pub struct TraversableUnaryExpression<'a, 't> {
+    pub operator: UnaryOperator,
+    pub argument: TraversableExpression<'a, 't>,
+    pub parent: TraversableExpressionParent<'a, 't>,
+}
+
+const _: () = assert_eq_size_align::<UnaryExpression, TraversableUnaryExpression>();
+const _: () = assert_box_and_cell_swappable::<UnaryExpression>();
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+#[repr(u8)]
 pub enum UnaryOperator {
-    UnaryNegation,
-    UnaryPlus,
-    LogicalNot,
-    BitwiseNot,
-    Typeof,
-    Void,
-    Delete,
+    UnaryNegation = 0,
+    UnaryPlus = 1,
+    LogicalNot = 2,
+    BitwiseNot = 3,
+    Typeof = 4,
+    Void = 5,
+    Delete = 6,
 }

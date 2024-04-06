@@ -2,74 +2,36 @@ use oxc_allocator::Allocator;
 
 mod ast;
 mod cell;
+mod parser;
 mod print;
+mod traverse;
 mod visit;
 use ast::{
-    BinaryExpression, BinaryOperator, Expression, ExpressionParent, ExpressionStatement,
-    IdentifierReference, Statement, StringLiteral, UnaryExpression, UnaryOperator,
+    BinaryOperator, TraversableExpression as Expression,
+    TraversableExpressionParent as ExpressionParent, TraversableUnaryExpression as UnaryExpression,
+    UnaryOperator,
 };
-use cell::{node_ref, GhostAlloc, Token};
+use cell::{node_ref, Token};
 use print::Printer;
+use traverse::{transform, Traverse};
 use visit::Visit;
+
+// TODO: Implement semantic as a `Traverse` to set parents on nodes, rather than doing it in parser.
+// TODO: Make `parent` fields inaccessible in standard AST, so user cannot alter them.
 
 fn main() {
     let alloc = Allocator::default();
-    Token::new(|mut tk| {
-        let stmt = parse(&alloc, &mut tk);
-        println!("before: {}", Printer::print(&stmt, &mut tk));
-        TransformTypeof.visit_statement(&stmt, &mut tk);
-        println!("after: {}", Printer::print(&stmt, &mut tk));
-    });
-}
+    let stmt = alloc.alloc(parser::parse(&alloc));
+    println!("before: {}", Printer::print(stmt));
 
-/// Create AST for `typeof foo === 'object'`.
-/// Hard-coded here, but these are the steps actual parser would take to create the AST
-/// with "back-links" to parents on each node.
-fn parse<'a, 't>(alloc: &'a Allocator, tk: &mut Token<'t>) -> Statement<'a, 't> {
-    // `foo`
-    let id = alloc.galloc(IdentifierReference {
-        name: "foo",
-        parent: ExpressionParent::None,
-    });
-
-    // `typeof foo`
-    let unary_expr = alloc.galloc(UnaryExpression {
-        operator: UnaryOperator::Typeof,
-        argument: Expression::Identifier(id),
-        parent: ExpressionParent::None,
-    });
-    id.borrow_mut(tk).parent = ExpressionParent::UnaryExpression(unary_expr);
-
-    // `'object'`
-    let str_lit = alloc.galloc(StringLiteral {
-        value: "object",
-        parent: ExpressionParent::None,
-    });
-
-    // `typeof foo === 'object'` (as expression)
-    let binary_expr = alloc.galloc(BinaryExpression {
-        operator: BinaryOperator::StrictEquality,
-        left: Expression::UnaryExpression(unary_expr),
-        right: Expression::StringLiteral(str_lit),
-        parent: ExpressionParent::None,
-    });
-    unary_expr.borrow_mut(tk).parent = ExpressionParent::BinaryExpressionLeft(binary_expr);
-    str_lit.borrow_mut(tk).parent = ExpressionParent::BinaryExpressionRight(binary_expr);
-
-    // `typeof foo === 'object'` (as expression statement)
-    let expr_stmt = alloc.galloc(ExpressionStatement {
-        expression: Expression::BinaryExpression(binary_expr),
-    });
-    binary_expr.borrow_mut(tk).parent = ExpressionParent::ExpressionStatement(expr_stmt);
-
-    // `typeof foo === 'object'` (as statement)
-    Statement::ExpressionStatement(expr_stmt)
+    let stmt = transform(&mut TransformTypeof, stmt);
+    println!("after: {}", Printer::print(stmt));
 }
 
 /// Transformer for `typeof x === 'y'` to `'y' === typeof x`
 struct TransformTypeof;
 
-impl<'a, 't> Visit<'a, 't> for TransformTypeof {
+impl<'a, 't> Traverse<'a, 't> for TransformTypeof {
     fn visit_unary_expression(
         &mut self,
         unary_expr: node_ref!(UnaryExpression<'a, 't>),
