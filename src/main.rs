@@ -24,7 +24,7 @@ fn main() {
     let stmt = alloc.alloc(parser::parse(&alloc));
     println!("before: {}", Printer::print(stmt));
 
-    let stmt = transform(&mut TransformTypeof, stmt);
+    transform(&mut TransformTypeof, stmt);
     println!("after: {}", Printer::print(stmt));
 }
 

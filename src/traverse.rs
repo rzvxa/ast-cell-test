@@ -13,10 +13,11 @@ use crate::{
 /// The provided transformer must implement `Traverse` and will be runs on a version of the AST
 /// with interior mutability, allowing traversal in any direction (up or down).
 /// Once the transform is finished, the AST is transmuted back to its original form.
-pub fn transform<'a, 't: 'a, T: Traverse<'a, 't>>(
-    transformer: &mut T,
-    stmt: &mut Statement<'a>,
-) -> &'a mut Statement<'a> {
+pub fn transform<'a, 't, T>(transformer: &mut T, stmt: &mut Statement<'a>)
+where
+    't: 'a,
+    T: Traverse<'a, 't>,
+{
     // Generate `GhostToken` which transformer uses to access the AST.
     // SAFETY: We only create one token, and it never leaves this function
     let mut token: Token<'t> = unsafe { new_token_unchecked() };
@@ -32,22 +33,11 @@ pub fn transform<'a, 't: 'a, T: Traverse<'a, 't>>(
     // Run transformer on the traversable AST
     Traverse::visit_statement(transformer, stmt, &mut token);
 
-    // Consume the access token to ensure no references (mutable or immutable) to the traversable AST
-    // still exist. If the transformer attempts to hold on to any references to the AST, or to the token,
+    // The access token goes out of scope at this point, which guarantees that no references
+    // (either mutable or immutable) to the traversable AST or the token still exist.
+    // If the transformer attempts to hold on to any references to the AST, or to the token,
     // this will produce a compile-time error.
-    {
-        let _token = token;
-    }
-
-    // We consumed the token which allowed access to the `TraversableStatement`, so no live references
-    // (mutable or unmutable) to any nodes in the AST can still exist.
-    // Therefore we can safely transmute back to a `&mut` reference to original AST, and return it.
-    // TODO: Why do we have to return the `&mut Statement`? The reference passed in should be "released"
-    // at end of the function anyway. I believe it's the `'t: 'a` bound above which compiler insists on.
-    // Try to remove that constraint.
-    let stmt = stmt.get_mut();
-    // SAFETY: As above, layouts of `Statement` and `TraversableStatement` are identical
-    unsafe { &mut *(stmt as *mut TraversableStatement<'a, 't> as *mut Statement<'a>) }
+    // Therefore, the caller can now safely continue using the `&mut Statement` that they passed in.
 }
 
 pub trait Traverse<'a, 't> {
