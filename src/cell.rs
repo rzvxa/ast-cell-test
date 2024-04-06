@@ -45,6 +45,7 @@ impl<'t> Token<'t> {
     ///
     /// # SAFETY
     /// Caller must ensure only a single token is used with any AST at one time.
+    #[inline]
     pub unsafe fn new_unchecked() -> Self {
         // Token is a ZST
         std::mem::transmute(())
@@ -59,10 +60,12 @@ pub struct GCell<'t, T: ?Sized>(GhostCell<'t, T>);
 
 #[allow(dead_code)]
 impl<'t, T> GCell<'t, T> {
+    #[inline]
     pub const fn new(value: T) -> Self {
         Self(GhostCell::new(value))
     }
 
+    #[inline]
     pub fn into_inner(self) -> T {
         self.0.into_inner()
     }
@@ -70,22 +73,27 @@ impl<'t, T> GCell<'t, T> {
 
 #[allow(dead_code)]
 impl<'t, T: ?Sized> GCell<'t, T> {
+    #[inline]
     pub fn borrow<'a>(&'a self, token: &'a Token<'t>) -> &'a T {
         self.0.borrow(&token.0)
     }
 
+    #[inline]
     pub fn borrow_mut<'a>(&'a self, token: &'a mut Token<'t>) -> &'a mut T {
         self.0.borrow_mut(&mut token.0)
     }
 
+    #[inline]
     pub const fn as_ptr(&self) -> *mut T {
         self.0.as_ptr()
     }
 
+    #[inline]
     pub fn get_mut(&mut self) -> &mut T {
         self.0.get_mut()
     }
 
+    #[inline]
     pub fn from_mut(t: &mut T) -> &mut Self {
         // SAFETY: As this wrapper type is `#[repr(transparent)]`, it's safe to transmute
         let inner = GhostCell::from_mut(t);
@@ -95,10 +103,12 @@ impl<'t, T: ?Sized> GCell<'t, T> {
 
 #[allow(dead_code)]
 impl<'t, T> GCell<'t, T> {
+    #[inline]
     pub fn replace(&self, value: T, token: &mut Token<'t>) -> T {
         self.0.replace(value, &mut token.0)
     }
 
+    #[inline]
     pub fn take(&self, token: &mut Token<'t>) -> T
     where
         T: Default,
@@ -108,18 +118,21 @@ impl<'t, T> GCell<'t, T> {
 }
 
 impl<'t, T: Default> Default for GCell<'t, T> {
+    #[inline]
     fn default() -> Self {
         Self(GhostCell::default())
     }
 }
 
 impl<'t, T: ?Sized> AsMut<T> for GCell<'t, T> {
+    #[inline]
     fn as_mut(&mut self) -> &mut T {
         self.0.as_mut()
     }
 }
 
 impl<'t, T> From<T> for GCell<'t, T> {
+    #[inline]
     fn from(t: T) -> Self {
         Self(GhostCell::from(t))
     }
