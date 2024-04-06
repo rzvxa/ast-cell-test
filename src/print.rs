@@ -6,6 +6,9 @@ use crate::{
     node_ref, Token, Visit,
 };
 
+/// Codegen implemented as a visitor.
+/// Real codegen would not be implemented like this.
+/// This just a quick hack to get something to check this demo is working.
 pub struct Printer {
     output: String,
 }
