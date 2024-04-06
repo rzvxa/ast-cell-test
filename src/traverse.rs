@@ -4,7 +4,7 @@ use crate::{
         TraversableExpressionStatement, TraversableIdentifierReference, TraversableStatement,
         TraversableStringLiteral, TraversableUnaryExpression,
     },
-    cell::new_token_unchecked,
+    cell::{new_token_unchecked, GhostCell},
     node_ref, Token,
 };
 
@@ -15,7 +15,7 @@ use crate::{
 /// Once the transform is finished, the AST is transmuted back to its original form.
 pub fn transform<'a, 't: 'a, T: Traverse<'a, 't>>(
     transformer: &mut T,
-    stmt: &'a mut Statement<'a>,
+    stmt: &mut Statement<'a>,
 ) -> &'a mut Statement<'a> {
     // Generate `GhostToken` which transformer uses to access the AST.
     // SAFETY: We only create one token, and it never leaves this function
@@ -24,18 +24,19 @@ pub fn transform<'a, 't: 'a, T: Traverse<'a, 't>>(
     // Convert AST to traversable version.
     // SAFETY: `Statement` and `TraversableStatement` are mirrors of each other, with identical layouts.
     // The same is true of all child types - this is ensured by `#[repr(C)]` on all types.
-    // Therefore the 2 can be safely transmuted to each other, as long as aliasing guarantees are upheld.
-    // We start with a `&mut Statement`, so can be sure no other live references exist.
-    let stmt: node_ref!(TraversableStatement<'a, 't>) = unsafe { std::mem::transmute(stmt) };
+    // Therefore the 2 can be safely transmuted to each other.
+    // As we hold a `&mut` reference, it's guaranteed there are no other live references.
+    let stmt = unsafe { &mut *(stmt as *mut Statement<'a> as *mut TraversableStatement<'a, 't>) };
+    let stmt = GhostCell::from_mut(stmt);
 
     // Run transformer on the traversable AST
-    transformer.visit_statement(stmt, &mut token);
+    Traverse::visit_statement(transformer, stmt, &mut token);
 
     // Consume the access token to ensure no references (mutable or immutable) to the traversable AST
     // still exist. If the transformer attempts to hold on to any references to the AST, or to the token,
     // this will produce a compile-time error.
     {
-        let _tk = token;
+        let _token = token;
     }
 
     // We consumed the token which allowed access to the `TraversableStatement`, so no live references
@@ -44,16 +45,15 @@ pub fn transform<'a, 't: 'a, T: Traverse<'a, 't>>(
     // TODO: Why do we have to return the `&mut Statement`? The reference passed in should be "released"
     // at end of the function anyway. I believe it's the `'t: 'a` bound above which compiler insists on.
     // Try to remove that constraint.
-    #[allow(mutable_transmutes)]
-    unsafe {
-        std::mem::transmute(stmt)
-    }
+    let stmt = stmt.get_mut();
+    // SAFETY: As above, layouts of `Statement` and `TraversableStatement` are identical
+    unsafe { &mut *(stmt as *mut TraversableStatement<'a, 't> as *mut Statement<'a>) }
 }
 
 pub trait Traverse<'a, 't> {
     fn visit_statement(
         &mut self,
-        stmt: node_ref!(TraversableStatement<'a, 't>),
+        stmt: node_ref!(&TraversableStatement<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.walk_statement(stmt, tk)
@@ -61,7 +61,7 @@ pub trait Traverse<'a, 't> {
 
     fn walk_statement(
         &mut self,
-        stmt: node_ref!(TraversableStatement<'a, 't>),
+        stmt: node_ref!(&TraversableStatement<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         match stmt.borrow(tk) {
@@ -73,7 +73,7 @@ pub trait Traverse<'a, 't> {
 
     fn visit_expression_statement(
         &mut self,
-        expr_stmt: node_ref!(TraversableExpressionStatement<'a, 't>),
+        expr_stmt: node_ref!(&TraversableExpressionStatement<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.walk_expression_statement(expr_stmt, tk);
@@ -81,7 +81,7 @@ pub trait Traverse<'a, 't> {
 
     fn walk_expression_statement(
         &mut self,
-        expr_stmt: node_ref!(TraversableExpressionStatement<'a, 't>),
+        expr_stmt: node_ref!(&TraversableExpressionStatement<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.visit_expression(&expr_stmt.borrow(tk).expression.clone(), tk);
@@ -111,7 +111,7 @@ pub trait Traverse<'a, 't> {
     #[allow(unused_variables)]
     fn visit_identifier_reference(
         &mut self,
-        id: node_ref!(TraversableIdentifierReference<'a, 't>),
+        id: node_ref!(&TraversableIdentifierReference<'a, 't>),
         tk: &mut Token<'t>,
     ) {
     }
@@ -119,14 +119,14 @@ pub trait Traverse<'a, 't> {
     #[allow(unused_variables)]
     fn visit_string_literal(
         &mut self,
-        str_lit: node_ref!(TraversableStringLiteral<'a, 't>),
+        str_lit: node_ref!(&TraversableStringLiteral<'a, 't>),
         tk: &mut Token<'t>,
     ) {
     }
 
     fn visit_binary_expression(
         &mut self,
-        bin_expr: node_ref!(TraversableBinaryExpression<'a, 't>),
+        bin_expr: node_ref!(&TraversableBinaryExpression<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.walk_binary_expression(bin_expr, tk);
@@ -134,7 +134,7 @@ pub trait Traverse<'a, 't> {
 
     fn walk_binary_expression(
         &mut self,
-        bin_expr: node_ref!(TraversableBinaryExpression<'a, 't>),
+        bin_expr: node_ref!(&TraversableBinaryExpression<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.visit_expression(&bin_expr.borrow(tk).left.clone(), tk);
@@ -143,7 +143,7 @@ pub trait Traverse<'a, 't> {
 
     fn visit_unary_expression(
         &mut self,
-        unary_expr: node_ref!(TraversableUnaryExpression<'a, 't>),
+        unary_expr: node_ref!(&TraversableUnaryExpression<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.walk_unary_expression(unary_expr, tk);
@@ -151,7 +151,7 @@ pub trait Traverse<'a, 't> {
 
     fn walk_unary_expression(
         &mut self,
-        unary_expr: node_ref!(TraversableUnaryExpression<'a, 't>),
+        unary_expr: node_ref!(&TraversableUnaryExpression<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.visit_expression(&unary_expr.borrow(tk).argument.clone(), tk);

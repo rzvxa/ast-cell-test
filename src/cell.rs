@@ -11,9 +11,19 @@ pub unsafe fn new_token_unchecked<'t>() -> Token<'t> {
 
 /// Macro to reduce boilerplate of `GhostCell` references.
 /// `node_ref!(ExpressionStatement<'a, 't>)` -> `&'a GhostCell<'t, ExpressionStatement<'a, 't>>`
+/// `node_ref!(&ExpressionStatement<'a, 't>)` -> `&GhostCell<'t, ExpressionStatement<'a, 't>>`
+/// `node_ref!(&mut ExpressionStatement<'a, 't>)` -> `&mut GhostCell<'t, ExpressionStatement<'a, 't>>`
 macro_rules! node_ref {
     ($ty:ident<$arena:lifetime, $token:lifetime>) => {
         &$arena $crate::cell::GhostCell<$token, $ty<$arena, $token>>
+    };
+
+    (& $ty:ident<$arena:lifetime, $token:lifetime>) => {
+        & $crate::cell::GhostCell<$token, $ty<$arena, $token>>
+    };
+
+    (&mut $ty:ident<$arena:lifetime, $token:lifetime>) => {
+        &mut $crate::cell::GhostCell<$token, $ty<$arena, $token>>
     };
 }
 pub(crate) use node_ref;
