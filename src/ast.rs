@@ -5,7 +5,7 @@
 //! 1. Standard version - using `Box<'a, T>` for references between types.
 //! 2. Traversable version - identical, except references between types are `&GhostCell<'a, 't, T>`.
 //!
-//! The difference between the two is that the traversable version's features interior mutability
+//! The difference between the two is that the traversable version features interior mutability
 //! (via `GhostCell`). So the traversable AST can be mutated with just an immutable `&` reference.
 //! It can also be traversed in any direction (up or down).
 //!
@@ -20,7 +20,7 @@
 //! match between the "standard" and "traversable" types.
 
 // TODO: Create the "Traversable" types with a macro to ensure they cannot be out of sync,
-// and apply `#[repr(C)]` (for structs) / `#[repr(C, u8)]` (for enums) programatically,
+// and apply `#[repr(C)]` (for structs) / `#[repr(C, u8)]` (for enums) programmatically,
 // so can't get forgotten.
 
 use oxc_allocator::Box;
