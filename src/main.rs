@@ -1,50 +1,31 @@
-use ghost_cell::{GhostCell, GhostToken};
 use oxc_allocator::Allocator;
 
 mod ast;
+mod cell;
 mod print;
 mod visit;
 use ast::{
     BinaryExpression, BinaryOperator, Expression, ExpressionParent, ExpressionStatement,
     IdentifierReference, Statement, StringLiteral, UnaryExpression, UnaryOperator,
 };
+use cell::{node_ref, GhostAlloc, Token};
 use print::Printer;
 use visit::Visit;
 
-pub trait GhostAlloc {
-    fn galloc<'t, T>(&self, t: T) -> &GhostCell<'t, T>;
-}
-
-impl GhostAlloc for Allocator {
-    /// Allocate `T` into arena and return a `&GhostCell` containing it
-    fn galloc<'t, T>(&self, t: T) -> &GhostCell<'t, T> {
-        GhostCell::from_mut(self.alloc(t))
-    }
-}
-
-/// Macro to reduce boilerplate of `GhostCell` references.
-/// `node_ref!(ExpressionStatement<'a, 't>)` -> `&'a GhostCell<'t, ExpressionStatement<'a, 't>>`
-macro_rules! node_ref {
-    ($ty:ident<$arena:lifetime, $token:lifetime>) => {
-        &$arena ghost_cell::GhostCell<$token, $ty<$arena, $token>>
-    };
-}
-pub(crate) use node_ref;
-
 fn main() {
     let alloc = Allocator::default();
-    GhostToken::new(|mut token| {
-        let stmt = parse(&alloc, &mut token);
-        println!("before: {}", Printer::print(&stmt, &mut token));
-        TransformTypeof.visit_statement(&stmt, &mut token);
-        println!("after: {}", Printer::print(&stmt, &mut token));
+    Token::new(|mut tk| {
+        let stmt = parse(&alloc, &mut tk);
+        println!("before: {}", Printer::print(&stmt, &mut tk));
+        TransformTypeof.visit_statement(&stmt, &mut tk);
+        println!("after: {}", Printer::print(&stmt, &mut tk));
     });
 }
 
 /// Create AST for `typeof foo === 'object'`.
 /// Hard-coded here, but these are the steps actual parser would take to create the AST
 /// with "back-links" to parents on each node.
-fn parse<'a, 't>(alloc: &'a Allocator, token: &mut GhostToken<'t>) -> Statement<'a, 't> {
+fn parse<'a, 't>(alloc: &'a Allocator, tk: &mut Token<'t>) -> Statement<'a, 't> {
     // `foo`
     let id = alloc.galloc(IdentifierReference {
         name: "foo",
@@ -57,7 +38,7 @@ fn parse<'a, 't>(alloc: &'a Allocator, token: &mut GhostToken<'t>) -> Statement<
         argument: Expression::Identifier(id),
         parent: ExpressionParent::None,
     });
-    id.borrow_mut(token).parent = ExpressionParent::UnaryExpression(unary_expr);
+    id.borrow_mut(tk).parent = ExpressionParent::UnaryExpression(unary_expr);
 
     // `'object'`
     let str_lit = alloc.galloc(StringLiteral {
@@ -72,14 +53,14 @@ fn parse<'a, 't>(alloc: &'a Allocator, token: &mut GhostToken<'t>) -> Statement<
         right: Expression::StringLiteral(str_lit),
         parent: ExpressionParent::None,
     });
-    unary_expr.borrow_mut(token).parent = ExpressionParent::BinaryExpressionLeft(binary_expr);
-    str_lit.borrow_mut(token).parent = ExpressionParent::BinaryExpressionRight(binary_expr);
+    unary_expr.borrow_mut(tk).parent = ExpressionParent::BinaryExpressionLeft(binary_expr);
+    str_lit.borrow_mut(tk).parent = ExpressionParent::BinaryExpressionRight(binary_expr);
 
     // `typeof foo === 'object'` (as expression statement)
     let expr_stmt = alloc.galloc(ExpressionStatement {
         expression: Expression::BinaryExpression(binary_expr),
     });
-    binary_expr.borrow_mut(token).parent = ExpressionParent::ExpressionStatement(expr_stmt);
+    binary_expr.borrow_mut(tk).parent = ExpressionParent::ExpressionStatement(expr_stmt);
 
     // `typeof foo === 'object'` (as statement)
     Statement::ExpressionStatement(expr_stmt)
@@ -92,27 +73,25 @@ impl<'a, 't> Visit<'a, 't> for TransformTypeof {
     fn visit_unary_expression(
         &mut self,
         unary_expr: node_ref!(UnaryExpression<'a, 't>),
-        token: &mut GhostToken<'t>,
+        tk: &mut Token<'t>,
     ) {
-        self.walk_unary_expression(unary_expr, token);
+        self.walk_unary_expression(unary_expr, tk);
 
-        if unary_expr.borrow(token).operator == UnaryOperator::Typeof {
-            if let ExpressionParent::BinaryExpressionLeft(bin_expr) =
-                unary_expr.borrow(token).parent
-            {
+        if unary_expr.borrow(tk).operator == UnaryOperator::Typeof {
+            if let ExpressionParent::BinaryExpressionLeft(bin_expr) = unary_expr.borrow(tk).parent {
                 if matches!(
-                    bin_expr.borrow(token).operator,
+                    bin_expr.borrow(tk).operator,
                     BinaryOperator::Equality | BinaryOperator::StrictEquality
                 ) {
-                    if let Expression::StringLiteral(str_lit) = bin_expr.borrow(token).right {
+                    if let Expression::StringLiteral(str_lit) = bin_expr.borrow(tk).right {
                         // Swap left and right of binary expression
-                        let bin_expr_mut = bin_expr.borrow_mut(token);
+                        let bin_expr_mut = bin_expr.borrow_mut(tk);
                         std::mem::swap(&mut bin_expr_mut.left, &mut bin_expr_mut.right);
 
                         // Update parent links of left and right
-                        let temp = str_lit.borrow(token).parent;
-                        str_lit.borrow_mut(token).parent = unary_expr.borrow(token).parent;
-                        unary_expr.borrow_mut(token).parent = temp;
+                        let temp = str_lit.borrow(tk).parent;
+                        str_lit.borrow_mut(tk).parent = unary_expr.borrow(tk).parent;
+                        unary_expr.borrow_mut(tk).parent = temp;
                     }
                 }
             }
