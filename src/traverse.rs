@@ -4,7 +4,7 @@ use crate::{
         TraversableExpressionStatement, TraversableIdentifierReference, TraversableStatement,
         TraversableStringLiteral, TraversableUnaryExpression,
     },
-    cell::{new_token_unchecked, GhostCell},
+    cell::GCell,
     node_ref, Token,
 };
 
@@ -21,7 +21,7 @@ where
 {
     // Generate `GhostToken` which transformer uses to access the AST.
     // SAFETY: We only create one token, and it never leaves this function.
-    let mut token: Token<'t> = unsafe { new_token_unchecked() };
+    let mut token = unsafe { Token::new_unchecked() };
 
     // Convert AST to traversable version.
     // SAFETY: `Statement` and `TraversableStatement` are mirrors of each other, with identical layouts.
@@ -29,7 +29,7 @@ where
     // Therefore one can safely be transmuted to the other.
     // As we hold a `&mut` reference, it's guaranteed there are no other live references.
     let stmt = unsafe { &mut *(stmt as *mut Statement<'a> as *mut TraversableStatement<'a, 't>) };
-    let stmt = GhostCell::from_mut(stmt);
+    let stmt = GCell::from_mut(stmt);
 
     // Run transformer on the traversable AST
     Traverse::visit_statement(transformer, stmt, &mut token);

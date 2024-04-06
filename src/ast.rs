@@ -34,7 +34,7 @@ const fn assert_eq_size_align<T1, T2>() {
 }
 
 const fn assert_box_and_cell_swappable<T>() {
-    assert_eq_size_align::<Box<T>, &crate::cell::GhostCell<T>>()
+    assert_eq_size_align::<Box<T>, &crate::cell::GCell<T>>()
 }
 
 #[derive(Debug)]
