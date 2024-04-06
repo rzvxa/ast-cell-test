@@ -27,16 +27,6 @@ use oxc_allocator::Box;
 
 use crate::node_ref;
 
-const fn assert_eq_size_align<T1, T2>() {
-    use std::mem::{align_of, size_of};
-    assert!(size_of::<T1>() == size_of::<T2>());
-    assert!(align_of::<T1>() == align_of::<T2>());
-}
-
-const fn assert_box_and_cell_swappable<T>() {
-    assert_eq_size_align::<Box<T>, &crate::cell::GCell<T>>()
-}
-
 #[derive(Debug)]
 #[repr(C, u8)]
 pub enum Statement<'a> {
@@ -202,4 +192,14 @@ pub enum UnaryOperator {
     Typeof = 4,
     Void = 5,
     Delete = 6,
+}
+
+const fn assert_eq_size_align<T1, T2>() {
+    use std::mem::{align_of, size_of};
+    assert!(size_of::<T1>() == size_of::<T2>());
+    assert!(align_of::<T1>() == align_of::<T2>());
+}
+
+const fn assert_box_and_cell_swappable<T>() {
+    assert_eq_size_align::<Box<T>, &crate::cell::GCell<T>>()
 }
