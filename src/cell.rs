@@ -74,13 +74,13 @@ impl<'t, T> GCell<'t, T> {
 #[allow(dead_code)]
 impl<'t, T: ?Sized> GCell<'t, T> {
     #[inline]
-    pub fn borrow<'a>(&'a self, token: &'a Token<'t>) -> &'a T {
-        self.0.borrow(&token.0)
+    pub fn borrow<'a>(&'a self, tk: &'a Token<'t>) -> &'a T {
+        self.0.borrow(&tk.0)
     }
 
     #[inline]
-    pub fn borrow_mut<'a>(&'a self, token: &'a mut Token<'t>) -> &'a mut T {
-        self.0.borrow_mut(&mut token.0)
+    pub fn borrow_mut<'a>(&'a self, tk: &'a mut Token<'t>) -> &'a mut T {
+        self.0.borrow_mut(&mut tk.0)
     }
 
     #[inline]
@@ -104,16 +104,16 @@ impl<'t, T: ?Sized> GCell<'t, T> {
 #[allow(dead_code)]
 impl<'t, T> GCell<'t, T> {
     #[inline]
-    pub fn replace(&self, value: T, token: &mut Token<'t>) -> T {
-        self.0.replace(value, &mut token.0)
+    pub fn replace(&self, value: T, tk: &mut Token<'t>) -> T {
+        self.0.replace(value, &mut tk.0)
     }
 
     #[inline]
-    pub fn take(&self, token: &mut Token<'t>) -> T
+    pub fn take(&self, tk: &mut Token<'t>) -> T
     where
         T: Default,
     {
-        self.0.take(&mut token.0)
+        self.0.take(&mut tk.0)
     }
 }
 
