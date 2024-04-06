@@ -10,22 +10,23 @@ use crate::{
 
 /// Run transform visitor on AST.
 ///
-/// The provided transformer must implement `Traverse` and will be runs on a version of the AST
+/// The provided transformer must implement `Traverse` and will be run on a version of the AST
 /// with interior mutability, allowing traversal in any direction (up or down).
-/// Once the transform is finished, the AST is transmuted back to its original form.
+/// Once the transform is finished, caller can continue to use the standard version of the AST
+/// in the usual way, without interior mutability.
 pub fn transform<'a, 't, T>(transformer: &mut T, stmt: &mut Statement<'a>)
 where
     't: 'a,
     T: Traverse<'a, 't>,
 {
     // Generate `GhostToken` which transformer uses to access the AST.
-    // SAFETY: We only create one token, and it never leaves this function
+    // SAFETY: We only create one token, and it never leaves this function.
     let mut token: Token<'t> = unsafe { new_token_unchecked() };
 
     // Convert AST to traversable version.
     // SAFETY: `Statement` and `TraversableStatement` are mirrors of each other, with identical layouts.
     // The same is true of all child types - this is ensured by `#[repr(C)]` on all types.
-    // Therefore the 2 can be safely transmuted to each other.
+    // Therefore one can safely be transmuted to the other.
     // As we hold a `&mut` reference, it's guaranteed there are no other live references.
     let stmt = unsafe { &mut *(stmt as *mut Statement<'a> as *mut TraversableStatement<'a, 't>) };
     let stmt = GhostCell::from_mut(stmt);
