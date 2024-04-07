@@ -37,7 +37,7 @@ impl<'a, 't> Traverse<'a, 't> for TransformTypeof {
     fn visit_unary_expression(
         &mut self,
         unary_expr: node_ref!(&UnaryExpression<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         let node = ctx.get_node(unary_expr);
         if node.operator == UnaryOperator::Typeof {

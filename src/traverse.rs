@@ -53,7 +53,7 @@ pub trait Traverse<'a, 't> {
     fn visit_statement(
         &mut self,
         stmt: node_ref!(&TraversableStatement<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.walk_statement(stmt, ctx)
     }
@@ -61,7 +61,7 @@ pub trait Traverse<'a, 't> {
     fn walk_statement(
         &mut self,
         stmt: node_ref!(&TraversableStatement<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         match ctx.get_node(stmt) {
             TraversableStatement::ExpressionStatement(expr_stmt) => {
@@ -73,7 +73,7 @@ pub trait Traverse<'a, 't> {
     fn visit_expression_statement(
         &mut self,
         expr_stmt: node_ref!(&TraversableExpressionStatement<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.walk_expression_statement(expr_stmt, ctx);
     }
@@ -81,7 +81,7 @@ pub trait Traverse<'a, 't> {
     fn walk_expression_statement(
         &mut self,
         expr_stmt: node_ref!(&TraversableExpressionStatement<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.visit_expression(&ctx.get_node(expr_stmt).expression.clone(), ctx);
     }
@@ -89,7 +89,7 @@ pub trait Traverse<'a, 't> {
     fn visit_expression(
         &mut self,
         expr: &TraversableExpression<'a, 't>,
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.walk_expression(expr, ctx);
     }
@@ -97,7 +97,7 @@ pub trait Traverse<'a, 't> {
     fn walk_expression(
         &mut self,
         expr: &TraversableExpression<'a, 't>,
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         match expr {
             TraversableExpression::Identifier(id) => {
@@ -119,7 +119,7 @@ pub trait Traverse<'a, 't> {
     fn visit_identifier_reference(
         &mut self,
         id: node_ref!(&TraversableIdentifierReference<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
     }
 
@@ -127,14 +127,14 @@ pub trait Traverse<'a, 't> {
     fn visit_string_literal(
         &mut self,
         str_lit: node_ref!(&TraversableStringLiteral<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
     }
 
     fn visit_binary_expression(
         &mut self,
         bin_expr: node_ref!(&TraversableBinaryExpression<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.walk_binary_expression(bin_expr, ctx);
     }
@@ -142,7 +142,7 @@ pub trait Traverse<'a, 't> {
     fn walk_binary_expression(
         &mut self,
         bin_expr: node_ref!(&TraversableBinaryExpression<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         let node = ctx.get_node(bin_expr);
 
@@ -153,7 +153,7 @@ pub trait Traverse<'a, 't> {
     fn visit_unary_expression(
         &mut self,
         unary_expr: node_ref!(&TraversableUnaryExpression<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.walk_unary_expression(unary_expr, ctx);
     }
@@ -161,7 +161,7 @@ pub trait Traverse<'a, 't> {
     fn walk_unary_expression(
         &mut self,
         unary_expr: node_ref!(&TraversableUnaryExpression<'a, 't>),
-        ctx: &mut TraverseCtx<'a, 't>,
+        ctx: &TraverseCtx<'a, 't>,
     ) {
         self.visit_expression(&ctx.get_node(unary_expr).argument.clone(), ctx);
     }
