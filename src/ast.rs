@@ -27,6 +27,21 @@ use oxc_allocator::Box;
 
 use crate::cell::shared_box;
 
+/// Macro to assert equivalence in size and alignment between standard and traversable types
+macro_rules! assert_size_align_match {
+    ($standard:ident, $traversable:ident) => {
+        const _: () = {
+            use std::mem::{align_of, size_of};
+            assert!(size_of::<$standard>() == size_of::<$traversable>());
+            assert!(align_of::<$standard>() == align_of::<$traversable>());
+            assert!(size_of::<Box<$standard>>() == size_of::<&crate::cell::GCell<$traversable>>());
+            assert!(
+                align_of::<Box<$standard>>() == align_of::<&crate::cell::GCell<$traversable>>()
+            );
+        };
+    };
+}
+
 #[derive(Debug)]
 #[repr(C, u8)]
 pub enum Statement<'a> {
@@ -39,8 +54,7 @@ pub enum TraversableStatement<'a, 't> {
     ExpressionStatement(shared_box!(TraversableExpressionStatement<'a, 't>)) = 0,
 }
 
-const _: () = assert_eq_size_align::<Statement, TraversableStatement>();
-const _: () = assert_box_and_cell_swappable::<Statement>();
+assert_size_align_match!(Statement, TraversableStatement);
 
 #[derive(Debug)]
 #[repr(C)]
@@ -54,8 +68,7 @@ pub struct TraversableExpressionStatement<'a, 't> {
     pub expression: TraversableExpression<'a, 't>,
 }
 
-const _: () = assert_eq_size_align::<ExpressionStatement, TraversableExpressionStatement>();
-const _: () = assert_box_and_cell_swappable::<ExpressionStatement>();
+assert_size_align_match!(ExpressionStatement, TraversableExpressionStatement);
 
 #[derive(Debug)]
 #[repr(C, u8)]
@@ -75,8 +88,7 @@ pub enum TraversableExpression<'a, 't> {
     UnaryExpression(shared_box!(TraversableUnaryExpression<'a, 't>)) = 3,
 }
 
-const _: () = assert_eq_size_align::<Expression, TraversableExpression>();
-const _: () = assert_box_and_cell_swappable::<Expression>();
+assert_size_align_match!(Expression, TraversableExpression);
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C, u8)]
@@ -98,8 +110,7 @@ pub enum TraversableExpressionParent<'a, 't> {
     UnaryExpression(shared_box!(TraversableUnaryExpression<'a, 't>)) = 4,
 }
 
-const _: () = assert_eq_size_align::<ExpressionParent, TraversableExpressionParent>();
-const _: () = assert_box_and_cell_swappable::<ExpressionParent>();
+assert_size_align_match!(ExpressionParent, TraversableExpressionParent);
 
 #[derive(Debug)]
 #[repr(C)]
@@ -115,8 +126,7 @@ pub struct TraversableIdentifierReference<'a, 't> {
     pub parent: TraversableExpressionParent<'a, 't>,
 }
 
-const _: () = assert_eq_size_align::<IdentifierReference, TraversableIdentifierReference>();
-const _: () = assert_box_and_cell_swappable::<IdentifierReference>();
+assert_size_align_match!(IdentifierReference, TraversableIdentifierReference);
 
 #[derive(Debug)]
 #[repr(C)]
@@ -132,8 +142,7 @@ pub struct TraversableStringLiteral<'a, 't> {
     pub parent: TraversableExpressionParent<'a, 't>,
 }
 
-const _: () = assert_eq_size_align::<StringLiteral, TraversableStringLiteral>();
-const _: () = assert_box_and_cell_swappable::<StringLiteral>();
+assert_size_align_match!(StringLiteral, TraversableStringLiteral);
 
 #[derive(Debug)]
 #[repr(C)]
@@ -153,8 +162,7 @@ pub struct TraversableBinaryExpression<'a, 't> {
     pub parent: TraversableExpressionParent<'a, 't>,
 }
 
-const _: () = assert_eq_size_align::<BinaryExpression, TraversableBinaryExpression>();
-const _: () = assert_box_and_cell_swappable::<BinaryExpression>();
+assert_size_align_match!(BinaryExpression, TraversableBinaryExpression);
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
@@ -179,8 +187,7 @@ pub struct TraversableUnaryExpression<'a, 't> {
     pub parent: TraversableExpressionParent<'a, 't>,
 }
 
-const _: () = assert_eq_size_align::<UnaryExpression, TraversableUnaryExpression>();
-const _: () = assert_box_and_cell_swappable::<UnaryExpression>();
+assert_size_align_match!(UnaryExpression, TraversableUnaryExpression);
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
@@ -203,14 +210,4 @@ pub mod traversable {
     pub type StringLiteral<'a, 't> = super::TraversableStringLiteral<'a, 't>;
     pub type BinaryExpression<'a, 't> = super::TraversableBinaryExpression<'a, 't>;
     pub type UnaryExpression<'a, 't> = super::TraversableUnaryExpression<'a, 't>;
-}
-
-const fn assert_eq_size_align<T1, T2>() {
-    use std::mem::{align_of, size_of};
-    assert!(size_of::<T1>() == size_of::<T2>());
-    assert!(align_of::<T1>() == align_of::<T2>());
-}
-
-const fn assert_box_and_cell_swappable<T>() {
-    assert_eq_size_align::<Box<T>, &crate::cell::GCell<T>>()
 }
