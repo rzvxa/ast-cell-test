@@ -3,10 +3,10 @@
 //! This file defines 2 different versions of the AST:
 //!
 //! 1. Standard version - using `Box<'a, T>` for references between types.
-//! 2. Traversable version - identical, except references between types are `&GhostCell<'a, 't, T>`.
+//! 2. Traversable version - identical, except references between types are `&GCell<'a, 't, T>`.
 //!
 //! The difference between the two is that the traversable version features interior mutability
-//! (via `GhostCell`). So the traversable AST can be mutated with just an immutable `&` reference.
+//! (via `GCell`). So the traversable AST can be mutated with just an immutable `&` reference.
 //! It can also be traversed in any direction (up or down).
 //!
 //! To avoid an expensive conversion process between the two AST versions, they are laid out in memory

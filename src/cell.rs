@@ -30,7 +30,7 @@ impl<'t> Token<'t> {
     /// Create new access token for traversing AST.
     ///
     /// It is imperative that any code operating on a single AST does not have access to more
-    /// than 1 token. `GhostCell` uses this guarantee to make it impossible to obtain a `&mut`
+    /// than 1 token. `GCell` uses this guarantee to make it impossible to obtain a `&mut`
     /// reference to any AST node while another reference exists. If more than 1 token is "in play",
     /// this guarantee can be broken, and may lead to undefined behavior.
     ///
@@ -142,10 +142,10 @@ impl<'t, T> From<T> for GCell<'t, T> {
 unsafe impl<'t, T: ?Sized + Send> Send for GCell<'t, T> {}
 unsafe impl<'t, T: ?Sized + Send + Sync> Sync for GCell<'t, T> {}
 
-/// Macro to reduce boilerplate of `GhostCell` references.
-/// `node_ref!(ExpressionStatement<'a, 't>)` -> `&'a GhostCell<'t, ExpressionStatement<'a, 't>>`
-/// `node_ref!(&ExpressionStatement<'a, 't>)` -> `&GhostCell<'t, ExpressionStatement<'a, 't>>`
-/// `node_ref!(&mut ExpressionStatement<'a, 't>)` -> `&mut GhostCell<'t, ExpressionStatement<'a, 't>>`
+/// Macro to reduce boilerplate of `GCell` references.
+/// `node_ref!(ExpressionStatement<'a, 't>)` -> `&'a GCell<'t, ExpressionStatement<'a, 't>>`
+/// `node_ref!(&ExpressionStatement<'a, 't>)` -> `&GCell<'t, ExpressionStatement<'a, 't>>`
+/// `node_ref!(&mut ExpressionStatement<'a, 't>)` -> `&mut GCell<'t, ExpressionStatement<'a, 't>>`
 macro_rules! node_ref {
     ($ty:ident<$arena:lifetime, $token:lifetime>) => {
         &$arena $crate::cell::GCell<$token, $ty<$arena, $token>>
