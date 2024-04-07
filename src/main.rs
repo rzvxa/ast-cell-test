@@ -10,7 +10,7 @@ use ast::{
     traversable::{Expression, ExpressionParent, UnaryExpression},
     BinaryOperator, UnaryOperator,
 };
-use cell::{node_ref, Token};
+use cell::{gcell, Token};
 use print::Printer;
 use traverse::{transform, Traverse};
 use visit::Visit;
@@ -33,7 +33,7 @@ struct TransformTypeof;
 impl<'a, 't> Traverse<'a, 't> for TransformTypeof {
     fn visit_unary_expression(
         &mut self,
-        unary_expr: node_ref!(&UnaryExpression<'a, 't>),
+        unary_expr: &gcell!(UnaryExpression<'a, 't>),
         tk: &mut Token<'t>,
     ) {
         self.walk_unary_expression(unary_expr, tk);

@@ -3,7 +3,7 @@
 //! This file defines 2 different versions of the AST:
 //!
 //! 1. Standard version - using `Box<'a, T>` for references between types.
-//! 2. Traversable version - identical, except references between types are `&GCell<'a, 't, T>`.
+//! 2. Traversable version - identical, except references between types are `SharedBox<'a, 't, T>`.
 //!
 //! The difference between the two is that the traversable version features interior mutability
 //! (via `GCell`). So the traversable AST can be mutated with just an immutable `&` reference.
@@ -25,7 +25,7 @@
 
 use oxc_allocator::Box;
 
-use crate::node_ref;
+use crate::cell::shared_box;
 
 #[derive(Debug)]
 #[repr(C, u8)]
@@ -36,7 +36,7 @@ pub enum Statement<'a> {
 #[derive(Clone)]
 #[repr(C, u8)]
 pub enum TraversableStatement<'a, 't> {
-    ExpressionStatement(node_ref!(TraversableExpressionStatement<'a, 't>)) = 0,
+    ExpressionStatement(shared_box!(TraversableExpressionStatement<'a, 't>)) = 0,
 }
 
 const _: () = assert_eq_size_align::<Statement, TraversableStatement>();
@@ -69,10 +69,10 @@ pub enum Expression<'a> {
 #[derive(Clone)]
 #[repr(C, u8)]
 pub enum TraversableExpression<'a, 't> {
-    StringLiteral(node_ref!(TraversableStringLiteral<'a, 't>)) = 0,
-    Identifier(node_ref!(TraversableIdentifierReference<'a, 't>)) = 1,
-    BinaryExpression(node_ref!(TraversableBinaryExpression<'a, 't>)) = 2,
-    UnaryExpression(node_ref!(TraversableUnaryExpression<'a, 't>)) = 3,
+    StringLiteral(shared_box!(TraversableStringLiteral<'a, 't>)) = 0,
+    Identifier(shared_box!(TraversableIdentifierReference<'a, 't>)) = 1,
+    BinaryExpression(shared_box!(TraversableBinaryExpression<'a, 't>)) = 2,
+    UnaryExpression(shared_box!(TraversableUnaryExpression<'a, 't>)) = 3,
 }
 
 const _: () = assert_eq_size_align::<Expression, TraversableExpression>();
@@ -92,10 +92,10 @@ pub enum ExpressionParent<'a> {
 #[repr(C, u8)]
 pub enum TraversableExpressionParent<'a, 't> {
     None = 0,
-    ExpressionStatement(node_ref!(TraversableExpressionStatement<'a, 't>)) = 1,
-    BinaryExpressionLeft(node_ref!(TraversableBinaryExpression<'a, 't>)) = 2,
-    BinaryExpressionRight(node_ref!(TraversableBinaryExpression<'a, 't>)) = 3,
-    UnaryExpression(node_ref!(TraversableUnaryExpression<'a, 't>)) = 4,
+    ExpressionStatement(shared_box!(TraversableExpressionStatement<'a, 't>)) = 1,
+    BinaryExpressionLeft(shared_box!(TraversableBinaryExpression<'a, 't>)) = 2,
+    BinaryExpressionRight(shared_box!(TraversableBinaryExpression<'a, 't>)) = 3,
+    UnaryExpression(shared_box!(TraversableUnaryExpression<'a, 't>)) = 4,
 }
 
 const _: () = assert_eq_size_align::<ExpressionParent, TraversableExpressionParent>();

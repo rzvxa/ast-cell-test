@@ -142,21 +142,25 @@ impl<'t, T> From<T> for GCell<'t, T> {
 unsafe impl<'t, T: ?Sized + Send> Send for GCell<'t, T> {}
 unsafe impl<'t, T: ?Sized + Send + Sync> Sync for GCell<'t, T> {}
 
-/// Macro to reduce boilerplate of `GCell` references.
-/// `node_ref!(ExpressionStatement<'a, 't>)` -> `&'a GCell<'t, ExpressionStatement<'a, 't>>`
-/// `node_ref!(&ExpressionStatement<'a, 't>)` -> `&GCell<'t, ExpressionStatement<'a, 't>>`
-/// `node_ref!(&mut ExpressionStatement<'a, 't>)` -> `&mut GCell<'t, ExpressionStatement<'a, 't>>`
-macro_rules! node_ref {
+/// Type alias for a shared ref to a `GCell`.
+/// This is the interior-mutable equivalent to `oxc_allocator::Box`.
+pub type SharedBox<'a, 't, T> = &'a GCell<'t, T>;
+
+/// Macro to reduce boilerplate of defining `SharedBox` types.
+/// `shared_box!(ExpressionStatement<'a, 't>)` -> `SharedBox<'a, 't, ExpressionStatement<'a, 't>>`
+/// (which is equivalent to `&'a GCell<'t, ExpressionStatement<'a, 't>>`)
+macro_rules! shared_box {
     ($ty:ident<$arena:lifetime, $token:lifetime>) => {
-        &$arena $crate::cell::GCell<$token, $ty<$arena, $token>>
-    };
-
-    (& $ty:ident<$arena:lifetime, $token:lifetime>) => {
-        & $crate::cell::GCell<$token, $ty<$arena, $token>>
-    };
-
-    (&mut $ty:ident<$arena:lifetime, $token:lifetime>) => {
-        &mut $crate::cell::GCell<$token, $ty<$arena, $token>>
+        $crate::cell::SharedBox<$arena, $token, $ty<$arena, $token>>
     };
 }
-pub(crate) use node_ref;
+pub(crate) use shared_box;
+
+/// Macro to reduce boilerplate of `GCell` references.
+/// `gcell!(ExpressionStatement<'a, 't>)` -> `GCell<'t, ExpressionStatement<'a, 't>>`
+macro_rules! gcell {
+    ($ty:ident<$arena:lifetime, $token:lifetime>) => {
+        $crate::cell::GCell<$token, $ty<$arena, $token>>
+    };
+}
+pub(crate) use gcell;
