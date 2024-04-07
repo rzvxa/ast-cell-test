@@ -1,10 +1,30 @@
+use oxc_allocator::Vec;
+
 use crate::ast::{
-    BinaryExpression, Expression, ExpressionStatement, IdentifierReference, Statement,
+    BinaryExpression, Expression, ExpressionStatement, IdentifierReference, Program, Statement,
     StringLiteral, UnaryExpression,
 };
 
 #[allow(clippy::single_match)]
 pub trait Visit<'a> {
+    fn visit_program(&mut self, program: &Program<'a>) {
+        self.walk_program(program)
+    }
+
+    fn walk_program(&mut self, program: &Program<'a>) {
+        self.visit_statements(&program.body);
+    }
+
+    fn visit_statements(&mut self, stmts: &Vec<'a, Statement<'a>>) {
+        self.walk_statements(stmts);
+    }
+
+    fn walk_statements(&mut self, stmts: &Vec<'a, Statement<'a>>) {
+        for stmt in stmts {
+            self.visit_statement(stmt);
+        }
+    }
+
     fn visit_statement(&mut self, stmt: &Statement<'a>) {
         self.walk_statement(stmt)
     }

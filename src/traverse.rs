@@ -2,9 +2,9 @@ use crate::{
     ast::{
         traversable::{
             BinaryExpression, Expression, ExpressionStatement, IdentifierReference,
-            Statement as TraversableStatement, StringLiteral, UnaryExpression,
+            Program as TraversableProgram, Statement, StringLiteral, UnaryExpression,
         },
-        Statement,
+        Program,
     },
     cell::{gcell, GCell, Token},
 };
@@ -15,7 +15,7 @@ use crate::{
 /// with interior mutability, allowing traversal in any direction (up or down).
 /// Once the transform is finished, caller can continue to use the standard version of the AST
 /// in the usual way, without interior mutability.
-pub fn transform<'a, 't, T>(transformer: &mut T, stmt: &mut Statement<'a>)
+pub fn transform<'a, 't, T>(transformer: &mut T, program: &mut Program<'a>)
 where
     't: 'a,
     T: Traverse<'a, 't>,
@@ -25,15 +25,15 @@ where
     let mut token = unsafe { Token::new_unchecked() };
 
     // Convert AST to traversable version.
-    // SAFETY: `Statement` and `TraversableStatement` are mirrors of each other, with identical layouts.
+    // SAFETY: `Program` and `TraversableProgram` are mirrors of each other, with identical layouts.
     // The same is true of all child types - this is ensured by `#[repr(C)]` on all types.
     // Therefore one can safely be transmuted to the other.
     // As we hold a `&mut` reference, it's guaranteed there are no other live references.
-    let stmt = unsafe { &mut *(stmt as *mut Statement<'a> as *mut TraversableStatement<'a, 't>) };
-    let stmt = GCell::from_mut(stmt);
+    let program = unsafe { &mut *(program as *mut Program<'a> as *mut TraversableProgram<'a, 't>) };
+    let program = GCell::from_mut(program);
 
     // Run transformer on the traversable AST
-    Traverse::visit_statement(transformer, stmt, &mut token);
+    Traverse::visit_program(transformer, program, &mut token);
 
     // The access token goes out of scope at this point, which guarantees that no references
     // (either mutable or immutable) to the traversable AST or the token still exist.
@@ -43,13 +43,40 @@ where
 }
 
 pub trait Traverse<'a, 't> {
-    fn visit_statement(&mut self, stmt: &gcell!(TraversableStatement<'a, 't>), tk: &mut Token<'t>) {
+    fn visit_program(&mut self, program: &gcell!(TraversableProgram<'a, 't>), tk: &mut Token<'t>) {
+        self.walk_program(program, tk)
+    }
+
+    fn walk_program(&mut self, program: &gcell!(TraversableProgram<'a, 't>), tk: &mut Token<'t>) {
+        let slice = program.borrow(tk).body.borrow(tk).as_slice();
+        // SAFETY: I *think* this is safe as we're converting 2 equivalent types
+        // (`GCell<'t, Vec<T>>` -> `GCell<'t, &[T]>`) and do not produce any mutable references.
+        // TODO: Miri doesn't like this.
+        // "Undefined Behavior: trying to retag from <9439> for SharedReadWrite permission at alloc1066[0xf0],
+        // but that tag only grants SharedReadOnly permission for this location."
+        // FIX IT. Probably needs a custom `SharedVec` type.
+        let stmts = unsafe { &*(slice as *const _ as *const GCell<'t, [Statement<'a, 't>]>) };
+        let stmts = stmts.as_slice_of_cells();
+        self.visit_statements(stmts, tk);
+    }
+
+    fn visit_statements(&mut self, stmts: &[GCell<'t, Statement<'a, 't>>], tk: &mut Token<'t>) {
+        self.walk_statements(stmts, tk);
+    }
+
+    fn walk_statements(&mut self, stmts: &[GCell<'t, Statement<'a, 't>>], tk: &mut Token<'t>) {
+        for stmt in stmts {
+            self.visit_statement(stmt, tk);
+        }
+    }
+
+    fn visit_statement(&mut self, stmt: &gcell!(Statement<'a, 't>), tk: &mut Token<'t>) {
         self.walk_statement(stmt, tk)
     }
 
-    fn walk_statement(&mut self, stmt: &gcell!(TraversableStatement<'a, 't>), tk: &mut Token<'t>) {
+    fn walk_statement(&mut self, stmt: &gcell!(Statement<'a, 't>), tk: &mut Token<'t>) {
         match stmt.borrow(tk) {
-            TraversableStatement::ExpressionStatement(expr_stmt) => {
+            Statement::ExpressionStatement(expr_stmt) => {
                 self.visit_expression_statement(expr_stmt, tk)
             } // _ => {} // No other variants at present
         }

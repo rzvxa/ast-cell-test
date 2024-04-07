@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        BinaryExpression, BinaryOperator, IdentifierReference, Statement, StringLiteral,
-        UnaryExpression, UnaryOperator,
+        BinaryExpression, BinaryOperator, ExpressionStatement, IdentifierReference, Program,
+        StringLiteral, UnaryExpression, UnaryOperator,
     },
     Visit,
 };
@@ -14,11 +14,11 @@ pub struct Printer {
 }
 
 impl Printer {
-    pub fn print(stmt: &Statement<'_>) -> String {
+    pub fn print(program: &Program<'_>) -> String {
         let mut printer = Printer {
             output: String::new(),
         };
-        printer.visit_statement(stmt);
+        printer.visit_program(program);
         printer.output
     }
 
@@ -28,6 +28,11 @@ impl Printer {
 }
 
 impl<'a> Visit<'a> for Printer {
+    fn visit_expression_statement(&mut self, expr_stmt: &ExpressionStatement<'a>) {
+        self.walk_expression_statement(expr_stmt);
+        self.output(";");
+    }
+
     fn visit_identifier_reference(&mut self, id: &IdentifierReference<'a>) {
         self.output(id.name);
     }

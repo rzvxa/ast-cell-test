@@ -23,9 +23,9 @@
 // and apply `#[repr(C)]` (for structs) / `#[repr(C, u8)]` (for enums) programmatically,
 // so can't get forgotten.
 
-use oxc_allocator::Box;
+use oxc_allocator::{Box, Vec};
 
-use crate::cell::shared_box;
+use crate::cell::{shared_box, shared_vec};
 
 /// Macro to assert equivalence in size and alignment between standard and traversable types
 macro_rules! assert_size_align_match {
@@ -43,6 +43,19 @@ macro_rules! assert_size_align_match {
 }
 
 #[derive(Debug)]
+#[repr(C)]
+pub struct Program<'a> {
+    pub body: Vec<'a, Statement<'a>>,
+}
+
+#[repr(C)]
+pub struct TraversableProgram<'a, 't> {
+    pub body: shared_vec!(TraversableStatement<'a, 't>),
+}
+
+assert_size_align_match!(Program, TraversableProgram);
+
+#[derive(Debug)]
 #[repr(C, u8)]
 pub enum Statement<'a> {
     ExpressionStatement(Box<'a, ExpressionStatement<'a>>) = 0,
@@ -56,16 +69,34 @@ pub enum TraversableStatement<'a, 't> {
 
 assert_size_align_match!(Statement, TraversableStatement);
 
+#[derive(Clone, Copy, Debug)]
+#[repr(C, u8)]
+pub enum StatementParent<'a> {
+    None = 0,
+    Program(*const Program<'a>) = 1,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C, u8)]
+pub enum TraversableStatementParent<'a, 't> {
+    None = 0,
+    Program(shared_box!(TraversableProgram<'a, 't>)) = 1,
+}
+
+assert_size_align_match!(StatementParent, TraversableStatementParent);
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct ExpressionStatement<'a> {
     pub expression: Expression<'a>,
+    pub parent: StatementParent<'a>,
 }
 
 #[derive(Clone)]
 #[repr(C)]
 pub struct TraversableExpressionStatement<'a, 't> {
     pub expression: TraversableExpression<'a, 't>,
+    pub parent: TraversableStatementParent<'a, 't>,
 }
 
 assert_size_align_match!(ExpressionStatement, TraversableExpressionStatement);
@@ -202,6 +233,7 @@ pub enum UnaryOperator {
 }
 
 pub mod traversable {
+    pub type Program<'a, 't> = super::TraversableProgram<'a, 't>;
     pub type Statement<'a, 't> = super::TraversableStatement<'a, 't>;
     pub type ExpressionStatement<'a, 't> = super::TraversableExpressionStatement<'a, 't>;
     pub type Expression<'a, 't> = super::TraversableExpression<'a, 't>;

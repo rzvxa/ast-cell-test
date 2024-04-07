@@ -20,11 +20,11 @@ use visit::Visit;
 
 fn main() {
     let alloc = Allocator::default();
-    let stmt = alloc.alloc(parser::parse(&alloc));
-    println!("before: {}", Printer::print(stmt));
+    let program = parser::parse(&alloc);
+    println!("before: {}", Printer::print(program));
 
-    transform(&mut TransformTypeof, stmt);
-    println!("after: {}", Printer::print(stmt));
+    transform(&mut TransformTypeof, program);
+    println!("after: {}", Printer::print(program));
 }
 
 /// Transformer for `typeof x === 'y'` to `'y' === typeof x`

@@ -1,14 +1,15 @@
-use oxc_allocator::{Allocator, Box};
+use oxc_allocator::{Allocator, Box, Vec};
 
 use crate::ast::{
     BinaryExpression, BinaryOperator, Expression, ExpressionParent, ExpressionStatement,
-    IdentifierReference, Statement, StringLiteral, UnaryExpression, UnaryOperator,
+    IdentifierReference, Program, Statement, StatementParent, StringLiteral, UnaryExpression,
+    UnaryOperator,
 };
 
 /// Create AST for `typeof foo === 'object'`.
 /// Hard-coded here, but these are the steps actual parser would take to create the AST
 /// with "back-links" to parents on each node.
-pub fn parse(alloc: &Allocator) -> Statement {
+pub fn parse(alloc: &Allocator) -> &mut Program {
     // `foo`
     let id = Box(alloc.alloc(IdentifierReference {
         name: "foo",
@@ -52,6 +53,7 @@ pub fn parse(alloc: &Allocator) -> Statement {
     // `typeof foo === 'object'` (as expression statement)
     let mut expr_stmt = Box(alloc.alloc(ExpressionStatement {
         expression: Expression::BinaryExpression(binary_expr),
+        parent: StatementParent::None,
     }));
 
     let expr_stmt_ptr = &*expr_stmt as *const _;
@@ -60,5 +62,16 @@ pub fn parse(alloc: &Allocator) -> Statement {
     }
 
     // `typeof foo === 'object'` (as statement)
-    Statement::ExpressionStatement(expr_stmt)
+    let stmt = Statement::ExpressionStatement(expr_stmt);
+
+    // `typeof foo === 'object'` (as program)
+    let mut body = Vec::new_in(alloc);
+    body.push(stmt);
+    let program = alloc.alloc(Program { body });
+
+    let program_ptr = program as *const _;
+    let Statement::ExpressionStatement(expr_stmt) = program.body.iter_mut().next().unwrap();
+    expr_stmt.parent = StatementParent::Program(program_ptr);
+
+    program
 }
