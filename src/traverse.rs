@@ -48,34 +48,19 @@ pub trait Traverse<'a, 't> {
     }
 
     fn walk_program(&mut self, program: &gcell!(TraversableProgram<'a, 't>), tk: &mut Token<'t>) {
-        let slice = program.borrow(tk).body.borrow(tk).as_slice();
-        // SAFETY: I *think* this is safe as we're converting 2 equivalent types
-        // (`GCell<'t, Vec<T>>` -> `GCell<'t, &[T]>`) and do not produce any mutable references.
-        // TODO: Miri doesn't like this.
-        // "Undefined Behavior: trying to retag from <9439> for SharedReadWrite permission at alloc1066[0xf0],
-        // but that tag only grants SharedReadOnly permission for this location."
-        // FIX IT. Probably needs a custom `SharedVec` type.
-        let stmts = unsafe { &*(slice as *const _ as *const GCell<'t, [Statement<'a, 't>]>) };
-        let stmts = stmts.as_slice_of_cells();
-        self.visit_statements(stmts, tk);
-    }
-
-    fn visit_statements(&mut self, stmts: &[GCell<'t, Statement<'a, 't>>], tk: &mut Token<'t>) {
-        self.walk_statements(stmts, tk);
-    }
-
-    fn walk_statements(&mut self, stmts: &[GCell<'t, Statement<'a, 't>>], tk: &mut Token<'t>) {
-        for stmt in stmts {
-            self.visit_statement(stmt, tk);
+        let len = program.borrow(tk).body.len();
+        for index in 0..len {
+            let stmt = program.borrow(tk).body.as_slice()[index].borrow(tk).clone();
+            self.visit_statement(&stmt, tk);
         }
     }
 
-    fn visit_statement(&mut self, stmt: &gcell!(Statement<'a, 't>), tk: &mut Token<'t>) {
+    fn visit_statement(&mut self, stmt: &Statement<'a, 't>, tk: &mut Token<'t>) {
         self.walk_statement(stmt, tk)
     }
 
-    fn walk_statement(&mut self, stmt: &gcell!(Statement<'a, 't>), tk: &mut Token<'t>) {
-        match stmt.borrow(tk) {
+    fn walk_statement(&mut self, stmt: &Statement<'a, 't>, tk: &mut Token<'t>) {
+        match stmt {
             Statement::ExpressionStatement(expr_stmt) => {
                 self.visit_expression_statement(expr_stmt, tk)
             } // _ => {} // No other variants at present

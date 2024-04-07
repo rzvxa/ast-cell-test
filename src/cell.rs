@@ -101,6 +101,7 @@ impl<'t, T: ?Sized> GCell<'t, T> {
     }
 }
 
+#[allow(dead_code)]
 impl<'t, T> GCell<'t, [T]> {
     #[inline]
     pub fn as_slice_of_cells(&self) -> &[GCell<'t, T>] {
@@ -173,7 +174,7 @@ macro_rules! gcell {
 pub(crate) use gcell;
 
 /// Type alias for a shared Vec
-pub type SharedVec<'a, 't, T> = GCell<'t, oxc_allocator::Vec<'a, T>>;
+pub type SharedVec<'a, 't, T> = oxc_allocator::Vec<'a, GCell<'t, T>>;
 
 /// Macro to reduce boilerplate of defining `SharedVec` types.
 /// `shared_vec!(Statement<'a, 't>)` -> `SharedVec<'a, 't, Statement<'a, 't>>`
