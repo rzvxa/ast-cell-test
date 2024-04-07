@@ -194,6 +194,17 @@ pub enum UnaryOperator {
     Delete = 6,
 }
 
+pub mod traversable {
+    pub type Statement<'a, 't> = super::TraversableStatement<'a, 't>;
+    pub type ExpressionStatement<'a, 't> = super::TraversableExpressionStatement<'a, 't>;
+    pub type Expression<'a, 't> = super::TraversableExpression<'a, 't>;
+    pub type ExpressionParent<'a, 't> = super::TraversableExpressionParent<'a, 't>;
+    pub type IdentifierReference<'a, 't> = super::TraversableIdentifierReference<'a, 't>;
+    pub type StringLiteral<'a, 't> = super::TraversableStringLiteral<'a, 't>;
+    pub type BinaryExpression<'a, 't> = super::TraversableBinaryExpression<'a, 't>;
+    pub type UnaryExpression<'a, 't> = super::TraversableUnaryExpression<'a, 't>;
+}
+
 const fn assert_eq_size_align<T1, T2>() {
     use std::mem::{align_of, size_of};
     assert!(size_of::<T1>() == size_of::<T2>());

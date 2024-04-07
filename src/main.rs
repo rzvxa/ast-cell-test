@@ -7,9 +7,8 @@ mod print;
 mod traverse;
 mod visit;
 use ast::{
-    BinaryOperator, TraversableExpression as Expression,
-    TraversableExpressionParent as ExpressionParent, TraversableUnaryExpression as UnaryExpression,
-    UnaryOperator,
+    traversable::{Expression, ExpressionParent, UnaryExpression},
+    BinaryOperator, UnaryOperator,
 };
 use cell::{node_ref, Token};
 use print::Printer;
