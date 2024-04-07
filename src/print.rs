@@ -27,7 +27,7 @@ impl Printer {
     }
 }
 
-impl<'a, 't> Visit<'a, 't> for Printer {
+impl<'a> Visit<'a> for Printer {
     fn visit_identifier_reference(&mut self, id: &IdentifierReference<'a>) {
         self.output(id.name);
     }

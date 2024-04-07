@@ -4,7 +4,7 @@ use crate::ast::{
 };
 
 #[allow(clippy::single_match)]
-pub trait Visit<'a, 't> {
+pub trait Visit<'a> {
     fn visit_statement(&mut self, stmt: &Statement<'a>) {
         self.walk_statement(stmt)
     }
