@@ -1,12 +1,11 @@
 use crate::{
     ast::{
-        traversable::{
-            BinaryExpression, Expression, ExpressionStatement, IdentifierReference,
-            Statement as TraversableStatement, StringLiteral, UnaryExpression,
-        },
-        Statement,
+        Statement, TraversableBinaryExpression, TraversableExpression,
+        TraversableExpressionStatement, TraversableIdentifierReference, TraversableStatement,
+        TraversableStringLiteral, TraversableUnaryExpression,
     },
     cell::GCell,
+    context::TraverseCtx,
     node_ref, Token,
 };
 
@@ -25,6 +24,13 @@ where
     // SAFETY: We only create one token, and it never leaves this function.
     let mut token = unsafe { Token::new_unchecked() };
 
+    // I'm not sure if this line is needed or not
+    let token_ref: &mut Token<'t> = &mut token;
+    // SAFETY: Similar to the token itself it won't leave the scope of this function.
+    let token_ref: &'a mut Token<'t> = unsafe { std::mem::transmute(token_ref) };
+
+    let mut ctx = TraverseCtx::new(token_ref);
+
     // Convert AST to traversable version.
     // SAFETY: `Statement` and `TraversableStatement` are mirrors of each other, with identical layouts.
     // The same is true of all child types - this is ensured by `#[repr(C)]` on all types.
@@ -34,7 +40,7 @@ where
     let stmt = GCell::from_mut(stmt);
 
     // Run transformer on the traversable AST
-    Traverse::visit_statement(transformer, stmt, &mut token);
+    Traverse::visit_statement(transformer, stmt, &mut ctx);
 
     // The access token goes out of scope at this point, which guarantees that no references
     // (either mutable or immutable) to the traversable AST or the token still exist.
@@ -47,56 +53,64 @@ pub trait Traverse<'a, 't> {
     fn visit_statement(
         &mut self,
         stmt: node_ref!(&TraversableStatement<'a, 't>),
-        tk: &mut Token<'t>,
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.walk_statement(stmt, tk)
+        self.walk_statement(stmt, ctx)
     }
 
     fn walk_statement(
         &mut self,
         stmt: node_ref!(&TraversableStatement<'a, 't>),
-        tk: &mut Token<'t>,
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        match stmt.borrow(tk) {
+        match ctx.get_node(stmt) {
             TraversableStatement::ExpressionStatement(expr_stmt) => {
-                self.visit_expression_statement(expr_stmt, tk)
+                self.visit_expression_statement(expr_stmt, ctx)
             } // _ => {} // No other variants at present
         }
     }
 
     fn visit_expression_statement(
         &mut self,
-        expr_stmt: node_ref!(&ExpressionStatement<'a, 't>),
-        tk: &mut Token<'t>,
+        expr_stmt: node_ref!(&TraversableExpressionStatement<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.walk_expression_statement(expr_stmt, tk);
+        self.walk_expression_statement(expr_stmt, ctx);
     }
 
     fn walk_expression_statement(
         &mut self,
-        expr_stmt: node_ref!(&ExpressionStatement<'a, 't>),
-        tk: &mut Token<'t>,
+        expr_stmt: node_ref!(&TraversableExpressionStatement<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.visit_expression(&expr_stmt.borrow(tk).expression.clone(), tk);
+        self.visit_expression(&ctx.get_node(expr_stmt).expression.clone(), ctx);
     }
 
-    fn visit_expression(&mut self, expr: &Expression<'a, 't>, tk: &mut Token<'t>) {
-        self.walk_expression(expr, tk);
+    fn visit_expression(
+        &mut self,
+        expr: &TraversableExpression<'a, 't>,
+        ctx: &mut TraverseCtx<'a, 't>,
+    ) {
+        self.walk_expression(expr, ctx);
     }
 
-    fn walk_expression(&mut self, expr: &Expression<'a, 't>, tk: &mut Token<'t>) {
+    fn walk_expression(
+        &mut self,
+        expr: &TraversableExpression<'a, 't>,
+        ctx: &mut TraverseCtx<'a, 't>,
+    ) {
         match expr {
-            Expression::Identifier(id) => {
-                self.visit_identifier_reference(id, tk);
+            TraversableExpression::Identifier(id) => {
+                self.visit_identifier_reference(id, ctx);
             }
-            Expression::StringLiteral(str_lit) => {
-                self.visit_string_literal(str_lit, tk);
+            TraversableExpression::StringLiteral(str_lit) => {
+                self.visit_string_literal(str_lit, ctx);
             }
-            Expression::BinaryExpression(bin_expr) => {
-                self.visit_binary_expression(bin_expr, tk);
+            TraversableExpression::BinaryExpression(bin_expr) => {
+                self.visit_binary_expression(bin_expr, ctx);
             }
-            Expression::UnaryExpression(unary_expr) => {
-                self.visit_unary_expression(unary_expr, tk);
+            TraversableExpression::UnaryExpression(unary_expr) => {
+                self.visit_unary_expression(unary_expr, ctx);
             }
         }
     }
@@ -104,49 +118,51 @@ pub trait Traverse<'a, 't> {
     #[allow(unused_variables)]
     fn visit_identifier_reference(
         &mut self,
-        id: node_ref!(&IdentifierReference<'a, 't>),
-        tk: &mut Token<'t>,
+        id: node_ref!(&TraversableIdentifierReference<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
     }
 
     #[allow(unused_variables)]
     fn visit_string_literal(
         &mut self,
-        str_lit: node_ref!(&StringLiteral<'a, 't>),
-        tk: &mut Token<'t>,
+        str_lit: node_ref!(&TraversableStringLiteral<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
     }
 
     fn visit_binary_expression(
         &mut self,
-        bin_expr: node_ref!(&BinaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
+        bin_expr: node_ref!(&TraversableBinaryExpression<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.walk_binary_expression(bin_expr, tk);
+        self.walk_binary_expression(bin_expr, ctx);
     }
 
     fn walk_binary_expression(
         &mut self,
-        bin_expr: node_ref!(&BinaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
+        bin_expr: node_ref!(&TraversableBinaryExpression<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.visit_expression(&bin_expr.borrow(tk).left.clone(), tk);
-        self.visit_expression(&bin_expr.borrow(tk).right.clone(), tk);
+        let node = ctx.get_node(bin_expr);
+
+        self.visit_expression(&node.left.clone(), ctx);
+        self.visit_expression(&node.right.clone(), ctx);
     }
 
     fn visit_unary_expression(
         &mut self,
-        unary_expr: node_ref!(&UnaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
+        unary_expr: node_ref!(&TraversableUnaryExpression<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.walk_unary_expression(unary_expr, tk);
+        self.walk_unary_expression(unary_expr, ctx);
     }
 
     fn walk_unary_expression(
         &mut self,
-        unary_expr: node_ref!(&UnaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
+        unary_expr: node_ref!(&TraversableUnaryExpression<'a, 't>),
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.visit_expression(&unary_expr.borrow(tk).argument.clone(), tk);
+        self.visit_expression(&ctx.get_node(unary_expr).argument.clone(), ctx);
     }
 }

@@ -1,14 +1,17 @@
+use context::TraverseCtx;
 use oxc_allocator::Allocator;
 
 mod ast;
 mod cell;
+mod context;
 mod parser;
 mod print;
 mod traverse;
 mod visit;
 use ast::{
-    traversable::{Expression, ExpressionParent, UnaryExpression},
-    BinaryOperator, UnaryOperator,
+    BinaryOperator, TraversableExpression as Expression,
+    TraversableExpressionParent as ExpressionParent, TraversableUnaryExpression as UnaryExpression,
+    UnaryOperator,
 };
 use cell::{node_ref, Token};
 use print::Printer;
@@ -34,28 +37,30 @@ impl<'a, 't> Traverse<'a, 't> for TransformTypeof {
     fn visit_unary_expression(
         &mut self,
         unary_expr: node_ref!(&UnaryExpression<'a, 't>),
-        tk: &mut Token<'t>,
+        ctx: &mut TraverseCtx<'a, 't>,
     ) {
-        self.walk_unary_expression(unary_expr, tk);
-
-        if unary_expr.borrow(tk).operator == UnaryOperator::Typeof {
-            if let ExpressionParent::BinaryExpressionLeft(bin_expr) = unary_expr.borrow(tk).parent {
+        let node = ctx.get_node(unary_expr);
+        if node.operator == UnaryOperator::Typeof {
+            if let ExpressionParent::BinaryExpressionLeft(bin_expr_ref) = node.parent {
+                let bin_expr = ctx.get_node(bin_expr_ref);
                 if matches!(
-                    bin_expr.borrow(tk).operator,
+                    bin_expr.operator,
                     BinaryOperator::Equality | BinaryOperator::StrictEquality
                 ) {
-                    if let Expression::StringLiteral(str_lit) = bin_expr.borrow(tk).right {
+                    if let Expression::StringLiteral(str_lit) = bin_expr.right {
                         // Swap left and right of binary expression
-                        let bin_expr_mut = bin_expr.borrow_mut(tk);
+                        let bin_expr_mut = ctx.get_node_mut(bin_expr_ref);
                         std::mem::swap(&mut bin_expr_mut.left, &mut bin_expr_mut.right);
 
                         // Update parent links of left and right
-                        let temp = str_lit.borrow(tk).parent;
-                        str_lit.borrow_mut(tk).parent = unary_expr.borrow(tk).parent;
-                        unary_expr.borrow_mut(tk).parent = temp;
+                        let temp = ctx.get_node(str_lit).parent;
+                        ctx.get_node_mut(str_lit).parent = node.parent;
+                        ctx.get_node_mut(unary_expr).parent = temp;
                     }
                 }
             }
         }
+
+        self.walk_unary_expression(unary_expr, ctx);
     }
 }
