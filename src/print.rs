@@ -21,23 +21,17 @@ impl Printer {
 
 impl<'a> Visit<'a> for Printer {
     fn visit_identifier_reference(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_ident() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_ident_unchecked();
         self.output(node.name);
     }
 
     fn visit_string_literal(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_str() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_str_unchecked();
         self.output(&format!("'{}'", node.value));
     }
 
     fn visit_unary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_unary() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_unary_unchecked();
         match node.operator {
             UnaryOperator::UnaryNegation => self.output("-"),
             UnaryOperator::UnaryPlus => self.output("+"),
@@ -53,15 +47,11 @@ impl<'a> Visit<'a> for Printer {
     fn visit_binary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
         {
             // scope
-            let Some(node) = nodes[id.as_index()].as_binary() else {
-                unreachable!()
-            };
+            let node = nodes[id.as_index()].as_binary_unchecked();
             self.visit_expression(node.left, nodes);
         }
 
-        let Some(node) = nodes[id.as_index()].as_binary() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_binary_unchecked();
         self.output(&format!(
             " {} ",
             match node.operator {

@@ -4,7 +4,7 @@ mod ast;
 mod print;
 mod visit;
 use ast::{
-    AsAstRef, AstRef, AstType, BinaryOperator, Expression, IdentifierReference, NodeId, Statement,
+    AsAstRef, AstRef, BinaryOperator, Expression, IdentifierReference, NodeId, Statement,
     StringLiteral, UnaryExpression, UnaryOperator,
 };
 use print::Printer;

@@ -10,37 +10,18 @@ pub trait Visit<'a> {
     }
 
     fn walk_statement(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_stmt() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_stmt_unchecked();
         match *node {
             Statement::ExpressionStatement(expr_stmt) => self.visit_expression(expr_stmt, nodes), // _ => {} // No other variants at present
         }
     }
-
-    // fn visit_expression_statement(
-    //     &mut self,
-    //     expr_stmt: ExpressionStatement<'a>,
-    // ) {
-    //     self.walk_expression_statement(expr_stmt);
-    // }
-    //
-    // fn walk_expression_statement(
-    //     &mut self,
-    //     expr_stmt: ExpressionStatement<'a>,
-    // ) {
-    //     self.visit_expression(&expr_stmt.borrow(token).expression.clone(), token);
-    // }
 
     fn visit_expression(&mut self, expr: NodeId<'a>, nodes: &mut Nodes<'a>) {
         self.walk_expression(expr, nodes);
     }
 
     fn walk_expression(&mut self, expr: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[expr.as_index()].as_expr() else {
-            dbg!(&nodes[expr.as_index()]);
-            unreachable!()
-        };
+        let node = nodes[expr.as_index()].as_expr_unchecked();
         match *node {
             Expression::Identifier(it) => {
                 self.visit_identifier_reference(it, nodes);
@@ -68,9 +49,7 @@ pub trait Visit<'a> {
     }
 
     fn walk_binary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_binary() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_binary_unchecked();
         let left = node.left.clone();
         let right = node.right.clone();
         self.visit_expression(left, nodes);
@@ -82,9 +61,7 @@ pub trait Visit<'a> {
     }
 
     fn walk_unary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_unary() else {
-            unreachable!()
-        };
+        let node = nodes[id.as_index()].as_unary_unchecked();
         self.visit_expression(node.argument, nodes);
     }
 }
