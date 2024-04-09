@@ -3,6 +3,9 @@ name = "ast-cell-test"
 version = "0.0.1"
 edition = "2021"
 
+[features]
+unsafe = []
+
 [dependencies]
 ghost-cell = "0.2.6"
 oxc_allocator = "0.12.1"
