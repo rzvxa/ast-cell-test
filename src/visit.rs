@@ -5,23 +5,23 @@ use crate::{
 
 #[allow(clippy::single_match)]
 pub trait Visit<'a> {
-    fn visit_statement(&mut self, stmt: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        self.walk_statement(stmt, nodes)
+    fn visit_statement(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
+        self.walk_statement(id, nodes)
     }
 
     fn walk_statement(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let node = nodes[id.as_index()].as_stmt_unchecked();
+        let node = nodes.get_node(id).as_stmt_unchecked();
         match *node {
             Statement::ExpressionStatement(expr_stmt) => self.visit_expression(expr_stmt, nodes), // _ => {} // No other variants at present
         }
     }
 
-    fn visit_expression(&mut self, expr: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        self.walk_expression(expr, nodes);
+    fn visit_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
+        self.walk_expression(id, nodes);
     }
 
-    fn walk_expression(&mut self, expr: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let node = nodes[expr.as_index()].as_expr_unchecked();
+    fn walk_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
+        let node = nodes.get_node(id).as_expr_unchecked();
         match *node {
             Expression::Identifier(it) => {
                 self.visit_identifier_reference(it, nodes);
@@ -49,7 +49,7 @@ pub trait Visit<'a> {
     }
 
     fn walk_binary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let node = nodes[id.as_index()].as_binary_unchecked();
+        let node = nodes.get_node(id).as_binary_unchecked();
         let left = node.left.clone();
         let right = node.right.clone();
         self.visit_expression(left, nodes);
@@ -61,7 +61,7 @@ pub trait Visit<'a> {
     }
 
     fn walk_unary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let node = nodes[id.as_index()].as_unary_unchecked();
+        let node = nodes.get_node(id).as_unary_unchecked();
         self.visit_expression(node.argument, nodes);
     }
 }

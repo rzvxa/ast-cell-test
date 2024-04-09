@@ -16,7 +16,17 @@ use visit::Visit;
 
 use crate::ast::BinaryExpression;
 
-type Nodes<'a> = Vec<'a, AstRef<'a>>;
+struct Nodes<'a>(Vec<'a, AstRef<'a>>);
+
+impl<'a> Nodes<'a> {
+    pub fn get_node(&self, id: NodeId<'a>) -> &AstRef<'a> {
+        &self.0[id.as_index()]
+    }
+
+    pub fn get_node_mut(&mut self, id: NodeId<'a>) -> &mut AstRef<'a> {
+        &mut self.0[id.as_index()]
+    }
+}
 
 fn main() {
     let alloc = Allocator::default();
@@ -29,7 +39,7 @@ fn main() {
 /// Create AST for `typeof foo === 'object'`.
 /// Hard-coded here, but these are the steps actual parser would take to create the AST
 /// with "back-links" to parents on each node.
-fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstRef<'a>>, NodeId<'a>) {
+fn parse<'a, 't>(alloc: &'a Allocator) -> (Nodes<'a>, NodeId<'a>) {
     let mut nodes = Vec::with_capacity_in(5, alloc);
     #[cfg(not(feature = "unsafe"))]
     macro_rules! push {
@@ -96,7 +106,7 @@ fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstRef<'a>>, NodeId<'a>) {
     // `typeof foo === 'object'` (as statement)
     let stmt_id = push!(Statement::ExpressionStatement(expr_id));
 
-    (nodes, stmt_id)
+    (Nodes(nodes), stmt_id)
 }
 
 /// Transformer for `typeof x === 'y'` to `'y' === typeof x`
@@ -104,13 +114,13 @@ struct TransformTypeof;
 
 impl<'a> Visit<'a> for TransformTypeof {
     fn visit_unary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let node = nodes[id.as_index()].as_unary_unchecked();
+        let node = nodes.get_node(id).as_unary_unchecked();
 
         if node.operator != UnaryOperator::Typeof {
             return;
         }
 
-        let Some(binary) = nodes[node.parent.as_index()].as_binary() else {
+        let Some(binary) = nodes.get_node(node.parent).as_binary() else {
             return;
         };
 
@@ -121,9 +131,9 @@ impl<'a> Visit<'a> for TransformTypeof {
             return;
         }
 
-        if nodes[binary.right.as_index()].as_expr().is_some() {
+        if nodes.get_node(binary.right).as_expr().is_some() {
             let parent_id = node.parent.clone();
-            let parent = nodes[parent_id.as_index()].as_binary_mut_unchecked();
+            let parent = nodes.get_node_mut(parent_id).as_binary_mut_unchecked();
             std::mem::swap(&mut parent.left, &mut parent.right);
         }
 

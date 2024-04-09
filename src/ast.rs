@@ -1,8 +1,8 @@
 #![allow(dead_code, clippy::enum_variant_names)]
 #[cfg(feature = "unsafe")]
-use std::fmt::Formatter;
+use std::{fmt::Formatter, mem::ManuallyDrop};
 
-use std::{fmt::Debug, marker::PhantomData, mem::ManuallyDrop};
+use std::{fmt::Debug, marker::PhantomData};
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct NodeId<'a>(usize, PhantomData<&'a ()>);
@@ -412,6 +412,7 @@ pub struct AstRef<'a> {
 
 // SAFETY: Statement kind should be currect,
 // And as for the union itself, it shouldn't be used after this drop call
+#[cfg(feature = "unsafe")]
 macro_rules! unsafe_ast_ref_drop {
     ($self:ident, $kind:ident) => {{
         let drop = &mut $self.val.stmt;
