@@ -90,27 +90,27 @@ struct TransformTypeof;
 
 impl<'a> Visit<'a> for TransformTypeof {
     fn visit_unary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
-        let Some(node) = nodes[id.as_index()].as_unary() else {
-            unreachable!()
+        let node = nodes[id.as_index()].as_unary_unchecked();
+
+        if node.operator != UnaryOperator::Typeof {
+            return;
+        }
+
+        let Some(binary) = nodes[node.parent.as_index()].as_binary() else {
+            return;
         };
 
-        if node.operator == UnaryOperator::Typeof {
-            let parent = &nodes[node.parent.as_index()];
-            if let Some(binary) = parent.as_binary() {
-                if matches!(
-                    binary.operator,
-                    BinaryOperator::Equality | BinaryOperator::StrictEquality
-                ) {
-                    let Some(Expression::StringLiteral(_)) =
-                        nodes[binary.right.as_index()].as_expr()
-                    else {
-                        unreachable!()
-                    };
-                    let parent_id = node.parent.clone();
-                    let parent = nodes[parent_id.as_index()].as_binary_mut_unchecked();
-                    std::mem::swap(&mut parent.left, &mut parent.right);
-                }
-            }
+        if !matches!(
+            binary.operator,
+            BinaryOperator::Equality | BinaryOperator::StrictEquality
+        ) {
+            return;
+        }
+
+        if nodes[binary.right.as_index()].as_expr().is_some() {
+            let parent_id = node.parent.clone();
+            let parent = nodes[parent_id.as_index()].as_binary_mut_unchecked();
+            std::mem::swap(&mut parent.left, &mut parent.right);
         }
 
         self.walk_unary_expression(id, nodes);
