@@ -4,7 +4,7 @@ mod ast;
 mod print;
 mod visit;
 use ast::{
-    AsAstKind, AstKind, BinaryOperator, Expression, IdentifierReference, NodeId, Statement,
+    AsAstRef, AstRef, AstType, BinaryOperator, Expression, IdentifierReference, NodeId, Statement,
     StringLiteral, UnaryExpression, UnaryOperator,
 };
 use print::Printer;
@@ -12,7 +12,7 @@ use visit::Visit;
 
 use crate::ast::BinaryExpression;
 
-type Nodes<'a> = Vec<AstKind<'a>>;
+type Nodes<'a> = Vec<AstRef<'a>>;
 
 fn main() {
     let alloc = Allocator::default();
@@ -25,11 +25,11 @@ fn main() {
 /// Create AST for `typeof foo === 'object'`.
 /// Hard-coded here, but these are the steps actual parser would take to create the AST
 /// with "back-links" to parents on each node.
-fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstKind<'a>>, NodeId<'a>) {
+fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstRef<'a>>, NodeId<'a>) {
     let mut nodes = Vec::with_capacity(5);
     macro_rules! push {
         ($expr:expr) => {{
-            nodes.push(alloc.alloc($expr).as_ast_kind());
+            nodes.push(alloc.alloc($expr).as_ast_ref());
             NodeId::new(nodes.len() - 1)
         }};
     }
@@ -53,7 +53,7 @@ fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstKind<'a>>, NodeId<'a>) {
 
     let unary_id = push!(unary_expr);
     let unary_expr_id = push!(Expression::UnaryExpression(unary_id));
-    nodes[ident_id.as_index()].as_ident_mut_or_panic().parent = unary_id;
+    nodes[ident_id.as_index()].as_ident_mut_unchecked().parent = unary_id;
 
     // `'object'`
     let str_lit = StringLiteral {
@@ -72,12 +72,12 @@ fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstKind<'a>>, NodeId<'a>) {
     };
     let binary_id = push!(binary_expr);
 
-    nodes[unary_id.as_index()].as_unary_mut_or_panic().parent = binary_id;
-    nodes[str_id.as_index()].as_str_mut_or_panic().parent = binary_id;
+    nodes[unary_id.as_index()].as_unary_mut_unchecked().parent = binary_id;
+    nodes[str_id.as_index()].as_str_mut_unchecked().parent = binary_id;
 
     // `typeof foo === 'object'` (as expression)
     let expr_id = push!(Expression::BinaryExpression(binary_id));
-    nodes[binary_id.as_index()].as_binary_mut_or_panic().parent = expr_id;
+    nodes[binary_id.as_index()].as_binary_mut_unchecked().parent = expr_id;
 
     // `typeof foo === 'object'` (as statement)
     let stmt_id = push!(Statement::ExpressionStatement(expr_id));
@@ -107,7 +107,7 @@ impl<'a> Visit<'a> for TransformTypeof {
                         unreachable!()
                     };
                     let parent_id = node.parent.clone();
-                    let parent = nodes[parent_id.as_index()].as_binary_mut_or_panic();
+                    let parent = nodes[parent_id.as_index()].as_binary_mut_unchecked();
                     std::mem::swap(&mut parent.left, &mut parent.right);
                 }
             }
