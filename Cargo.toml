@@ -4,8 +4,9 @@ version = "0.0.1"
 edition = "2021"
 
 [features]
-# default = ["unsafe"]
+default = ["unsafe", "astref"]
 unsafe = []
+astref = []
 
 [dependencies]
 ghost-cell = "0.2.6"

@@ -1,6 +1,8 @@
 #![allow(dead_code, clippy::enum_variant_names)]
 #[cfg(feature = "unsafe")]
-use std::{fmt::Formatter, mem::ManuallyDrop};
+use std::fmt::Formatter;
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
+use std::mem::ManuallyDrop;
 
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -24,7 +26,7 @@ pub enum Statement<'a> {
     ExpressionStatement(NodeId<'a>),
 }
 
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for Statement<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
@@ -33,8 +35,27 @@ impl<'a> AsAstRef<'a> for Statement<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut Statement<'a> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            inner: AstKind::Stmt(self),
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for ManuallyDrop<Statement<'a>> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            ty: AstType::Stmt,
+            val: { AstUntyped { stmt: self } },
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut Statement<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
             ty: AstType::Stmt,
@@ -51,7 +72,7 @@ pub enum Expression<'a> {
     UnaryExpression(NodeId<'a>),
 }
 
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for Expression<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
@@ -60,8 +81,27 @@ impl<'a> AsAstRef<'a> for Expression<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut Expression<'a> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            inner: AstKind::Expr(self),
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for ManuallyDrop<Expression<'a>> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            ty: AstType::Expr,
+            val: AstUntyped { expr: self },
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut Expression<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
             ty: AstType::Expr,
@@ -76,7 +116,7 @@ pub struct IdentifierReference<'a> {
     pub parent: NodeId<'a>,
 }
 
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for IdentifierReference<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
@@ -85,8 +125,27 @@ impl<'a> AsAstRef<'a> for IdentifierReference<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut IdentifierReference<'a> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            inner: AstKind::Ident(self),
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for ManuallyDrop<IdentifierReference<'a>> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            ty: AstType::Ident,
+            val: AstUntyped { ident: self },
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut IdentifierReference<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
             ty: AstType::Ident,
@@ -101,7 +160,7 @@ pub struct StringLiteral<'a> {
     pub parent: NodeId<'a>,
 }
 
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for StringLiteral<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
@@ -110,8 +169,27 @@ impl<'a> AsAstRef<'a> for StringLiteral<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut StringLiteral<'a> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            inner: AstKind::Str(self),
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for ManuallyDrop<StringLiteral<'a>> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            ty: AstType::Str,
+            val: AstUntyped { str: self },
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut StringLiteral<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
             ty: AstType::Str,
@@ -128,7 +206,7 @@ pub struct BinaryExpression<'a> {
     pub parent: NodeId<'a>,
 }
 
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for BinaryExpression<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
@@ -137,8 +215,27 @@ impl<'a> AsAstRef<'a> for BinaryExpression<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut BinaryExpression<'a> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            inner: AstKind::Binary(self),
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for ManuallyDrop<BinaryExpression<'a>> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            ty: AstType::Binary,
+            val: AstUntyped { binary: self },
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut BinaryExpression<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
             ty: AstType::Binary,
@@ -160,7 +257,7 @@ pub struct UnaryExpression<'a> {
     pub parent: NodeId<'a>,
 }
 
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for UnaryExpression<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
@@ -169,8 +266,27 @@ impl<'a> AsAstRef<'a> for UnaryExpression<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut UnaryExpression<'a> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            inner: AstKind::Unary(self),
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> AsAstRef<'a> for ManuallyDrop<UnaryExpression<'a>> {
+    fn as_ast_ref(self) -> AstRef<'a> {
+        AstRef {
+            ty: AstType::Unary,
+            val: AstUntyped { unary: self },
+        }
+    }
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+impl<'a> AsAstRef<'a> for &'a mut UnaryExpression<'a> {
     fn as_ast_ref(self) -> AstRef<'a> {
         AstRef {
             ty: AstType::Unary,
@@ -203,7 +319,7 @@ pub enum AstType {
 
 #[repr(u8)]
 #[derive(Debug)]
-#[cfg(not(feature = "unsafe"))]
+#[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
 pub enum AstKind<'a> {
     Stmt(Statement<'a>),
     Expr(Expression<'a>),
@@ -211,6 +327,18 @@ pub enum AstKind<'a> {
     Str(StringLiteral<'a>),
     Binary(BinaryExpression<'a>),
     Unary(UnaryExpression<'a>),
+}
+
+#[repr(u8)]
+#[derive(Debug)]
+#[cfg(all(not(feature = "unsafe"), feature = "astref"))]
+pub enum AstKind<'a> {
+    Stmt(&'a mut Statement<'a>),
+    Expr(&'a mut Expression<'a>),
+    Ident(&'a mut IdentifierReference<'a>),
+    Str(&'a mut StringLiteral<'a>),
+    Binary(&'a mut BinaryExpression<'a>),
+    Unary(&'a mut UnaryExpression<'a>),
 }
 
 #[cfg(not(feature = "unsafe"))]
@@ -412,14 +540,14 @@ pub struct AstRef<'a> {
 
 // SAFETY: Statement kind should be currect,
 // And as for the union itself, it shouldn't be used after this drop call
-#[cfg(feature = "unsafe")]
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 macro_rules! unsafe_ast_ref_drop {
     ($self:ident, $kind:ident) => {{
         let drop = &mut $self.val.$kind;
         ManuallyDrop::drop(drop);
     }};
 }
-#[cfg(feature = "unsafe")]
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 impl<'a> Drop for AstRef<'a> {
     fn drop(&mut self) {
         // SAFETY: we alreay checked the type for the inner value.
@@ -594,7 +722,7 @@ impl<'a> AstRef<'a> {
     }
 }
 
-#[cfg(feature = "unsafe")]
+#[cfg(all(feature = "unsafe", not(feature = "astref")))]
 union AstUntyped<'a> {
     stmt: ManuallyDrop<Statement<'a>>,
     expr: ManuallyDrop<Expression<'a>>,
@@ -602,6 +730,16 @@ union AstUntyped<'a> {
     str: ManuallyDrop<StringLiteral<'a>>,
     binary: ManuallyDrop<BinaryExpression<'a>>,
     unary: ManuallyDrop<UnaryExpression<'a>>,
+}
+
+#[cfg(all(feature = "unsafe", feature = "astref"))]
+union AstUntyped<'a> {
+    stmt: &'a mut Statement<'a>,
+    expr: &'a mut Expression<'a>,
+    ident: &'a mut IdentifierReference<'a>,
+    str: &'a mut StringLiteral<'a>,
+    binary: &'a mut BinaryExpression<'a>,
+    unary: &'a mut UnaryExpression<'a>,
 }
 
 #[cfg(feature = "unsafe")]
