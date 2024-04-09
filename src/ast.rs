@@ -415,7 +415,7 @@ pub struct AstRef<'a> {
 #[cfg(feature = "unsafe")]
 macro_rules! unsafe_ast_ref_drop {
     ($self:ident, $kind:ident) => {{
-        let drop = &mut $self.val.stmt;
+        let drop = &mut $self.val.$kind;
         ManuallyDrop::drop(drop);
     }};
 }
