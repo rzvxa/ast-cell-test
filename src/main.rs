@@ -1,3 +1,7 @@
+#[cfg(feature = "unsafe")]
+use std::mem::ManuallyDrop;
+
+use bumpalo::collections::Vec;
 use oxc_allocator::Allocator;
 
 mod ast;
@@ -12,7 +16,7 @@ use visit::Visit;
 
 use crate::ast::BinaryExpression;
 
-type Nodes<'a> = Vec<AstRef<'a>>;
+type Nodes<'a> = Vec<'a, AstRef<'a>>;
 
 fn main() {
     let alloc = Allocator::default();
@@ -26,10 +30,18 @@ fn main() {
 /// Hard-coded here, but these are the steps actual parser would take to create the AST
 /// with "back-links" to parents on each node.
 fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstRef<'a>>, NodeId<'a>) {
-    let mut nodes = Vec::with_capacity(5);
+    let mut nodes = Vec::with_capacity_in(5, alloc);
+    #[cfg(not(feature = "unsafe"))]
     macro_rules! push {
         ($expr:expr) => {{
-            nodes.push(alloc.alloc($expr).as_ast_ref());
+            nodes.push($expr.as_ast_ref());
+            NodeId::new(nodes.len() - 1)
+        }};
+    }
+    #[cfg(feature = "unsafe")]
+    macro_rules! push {
+        ($expr:expr) => {{
+            nodes.push(ManuallyDrop::new($expr).as_ast_ref());
             NodeId::new(nodes.len() - 1)
         }};
     }
@@ -53,7 +65,9 @@ fn parse<'a, 't>(alloc: &'a Allocator) -> (Vec<AstRef<'a>>, NodeId<'a>) {
 
     let unary_id = push!(unary_expr);
     let unary_expr_id = push!(Expression::UnaryExpression(unary_id));
-    nodes[ident_id.as_index()].as_ident_mut_unchecked().parent = unary_id;
+    (&mut nodes[ident_id.as_index()])
+        .as_ident_mut_unchecked()
+        .parent = unary_id;
 
     // `'object'`
     let str_lit = StringLiteral {

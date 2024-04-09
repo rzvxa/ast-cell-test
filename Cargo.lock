@@ -6,6 +6,7 @@ version = 3
 name = "ast-cell-test"
 version = "0.0.1"
 dependencies = [
+ "bumpalo",
  "ghost-cell",
  "oxc_allocator",
 ]
