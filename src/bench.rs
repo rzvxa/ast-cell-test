@@ -9,9 +9,9 @@ mod tests {
     use test::Bencher;
 
     #[bench]
-    fn bench_add_two(b: &mut Bencher) {
+    fn type_of(b: &mut Bencher) {
         b.iter(|| {
-            for _ in 0..100 {
+            for _ in 0..1000 {
                 test::black_box(test());
             }
         });
