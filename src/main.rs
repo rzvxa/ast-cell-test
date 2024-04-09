@@ -1,3 +1,4 @@
+#![feature(test)]
 #[cfg(feature = "unsafe")]
 use std::mem::ManuallyDrop;
 
@@ -7,6 +8,7 @@ use oxc_allocator::Allocator;
 mod ast;
 mod print;
 mod visit;
+mod bench;
 use ast::{
     AsAstRef, AstRef, BinaryOperator, Expression, IdentifierReference, NodeId, Statement,
     StringLiteral, UnaryExpression, UnaryOperator,
@@ -29,10 +31,16 @@ impl<'a> Nodes<'a> {
 }
 
 fn main() {
+    test();
+}
+
+pub fn test() {
     let alloc = Allocator::default();
     let (mut nodes, stmt) = parse(&alloc);
+    #[cfg(not(feature = "test"))]
     println!("before: {}", Printer::print(stmt, &mut nodes));
-    TransformTypeof.visit_statement(stmt, &mut nodes);
+    TransformTypeof.build(stmt, &mut nodes);
+    #[cfg(not(feature = "test"))]
     println!("after: {}", Printer::print(stmt, &mut nodes));
 }
 
@@ -111,6 +119,12 @@ fn parse<'a, 't>(alloc: &'a Allocator) -> (Nodes<'a>, NodeId<'a>) {
 
 /// Transformer for `typeof x === 'y'` to `'y' === typeof x`
 struct TransformTypeof;
+
+impl TransformTypeof {
+    pub fn build<'a>(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
+        self.visit_statement(id, nodes);
+    }
+}
 
 impl<'a> Visit<'a> for TransformTypeof {
     fn visit_unary_expression(&mut self, id: NodeId<'a>, nodes: &mut Nodes<'a>) {
