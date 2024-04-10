@@ -1,6 +1,4 @@
 #![feature(test)]
-#[cfg(all(feature = "unsafe", not(feature = "astref")))]
-use std::mem::ManuallyDrop;
 
 use bumpalo::collections::Vec;
 use oxc_allocator::Allocator;
@@ -49,28 +47,6 @@ pub fn test() {
 /// with "back-links" to parents on each node.
 fn parse<'a, 't>(alloc: &'a Allocator) -> (Nodes<'a>, NodeId<'a>) {
     let mut nodes = Vec::with_capacity_in(5, alloc);
-    #[cfg(all(not(feature = "unsafe"), not(feature = "astref")))]
-    macro_rules! push {
-        ($expr:expr) => {{
-            nodes.push($expr.as_ast_ref());
-            NodeId::new(nodes.len() - 1)
-        }};
-    }
-    #[cfg(all(not(feature = "unsafe"), feature = "astref"))]
-    macro_rules! push {
-        ($expr:expr) => {{
-            nodes.push(alloc.alloc($expr).as_ast_ref());
-            NodeId::new(nodes.len() - 1)
-        }};
-    }
-    #[cfg(all(feature = "unsafe", not(feature = "astref")))]
-    macro_rules! push {
-        ($expr:expr) => {{
-            nodes.push(ManuallyDrop::new($expr).as_ast_ref());
-            NodeId::new(nodes.len() - 1)
-        }};
-    }
-    #[cfg(all(feature = "unsafe", feature = "astref"))]
     macro_rules! push {
         ($expr:expr) => {{
             nodes.push(alloc.alloc($expr).as_ast_ref());
